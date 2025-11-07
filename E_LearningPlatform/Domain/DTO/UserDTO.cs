@@ -8,8 +8,14 @@ namespace Domain.DTO
 {
     public class UserDTO
     {
-        public string FullName { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Email { get; set; }
+        public int id { get; set; }
+        public string? fullName { get; set; }
+        public string? phoneNumber { get; set; }
+        public string? email { get; set; }
+        public string? gender { get; set; }
+
+        public string? Address { get; set; }
+
+        public long? nationalId { get; set; }
     }
 }

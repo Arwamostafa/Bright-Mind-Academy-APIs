@@ -70,12 +70,11 @@ namespace E_LearningPlatform
             builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
             builder.Services.AddScoped<ISubjectService, SubjectService>();
             builder.Services.AddScoped<IUnitRepository, UnitRepository>();
+            builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<IUnitService, UnitService>();
             builder.Services.AddScoped<ILessonRepository, LessonRepository>();
             builder.Services.AddScoped<ILessonService, LessonService>();
-            //builder.Services.AddScoped<IStudentRepository, StudentRepository>();
-            //builder.Services.AddScoped<IStudentService, StudentService>();
-            //builder.Services.AddScoped<IPaymentService, PaymentService>();
+            builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IQuizService, QuizService>();
 
 
@@ -84,7 +83,7 @@ namespace E_LearningPlatform
             {
                 options.MultipartBodyLengthLimit = 100_000_000;
             });
-            //builder.Services.AddScoped<IStudent, StudentService>();
+
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
                 .AddEntityFrameworkStores<AppDbContext>();
 
@@ -123,11 +122,11 @@ namespace E_LearningPlatform
             {
                 options.AddPolicy("FreePlan", policy =>
                 {
-                    policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials(); ;
+                    policy.WithOrigins("https://localhost:4200", "http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials(); ;
                 });
             });
 
-            
+
 
             /*-----------------------------Swagger PArt-----------------------------*/
             #region Swagger Region
@@ -181,7 +180,7 @@ namespace E_LearningPlatform
             app.UseHttpsRedirection();
 
             app.UseCors("FreePlan");
-            app.UseAuthentication(); //for 403 forbidden
+            app.UseAuthentication(); 
             app.UseAuthorization();
 
 

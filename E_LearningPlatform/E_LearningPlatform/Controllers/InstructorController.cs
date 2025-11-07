@@ -37,6 +37,19 @@ namespace E_LearningPlatform.Controllers
             if (ModelState.IsValid)
             {
                 ApplicationUser user = new ApplicationUser();
+                var existingUser = await userManager.FindByEmailAsync(instructorAddingDTO.Email);
+                if (existingUser != null)
+                {
+                    ModelState.AddModelError("Email", "Email is already in use");
+                    return BadRequest(new
+                    {
+                        message = "Validation failed",
+                        errors = new
+                        {
+                            Email = new[] { "Email is already in use" }
+                        }
+                    });
+                }
                 user.Email = instructorAddingDTO.Email;
                 user.PhoneNumber = instructorAddingDTO.PhoneNumber;
                 user.Address = instructorAddingDTO.Address;
@@ -70,7 +83,7 @@ namespace E_LearningPlatform.Controllers
                     await userManager.AddToRoleAsync(user, "Instructor");
 
 
-                    return Ok("Created");
+                    return Ok(new { message = "Instructor created successfully" });
                 }
 
                 foreach (var item in result.Errors)
@@ -80,13 +93,21 @@ namespace E_LearningPlatform.Controllers
 
             }
 
-            return BadRequest(ModelState);
+            return BadRequest(new
+            {
+                message = "User creation failed",
+                errors = ModelState
+              .Where(kvp => kvp.Value.Errors.Count > 0)
+              .ToDictionary(
+                  kvp => kvp.Key,
+                  kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+              )
+            });
         }
 
         [HttpGet]
         public IActionResult GetAllInstructors()
         {
-
             List<InstructorAddingDTO> instructorAddingDTOs = new List<InstructorAddingDTO>();
 
             var users = userManager.Users.Include(u => u.InstructorProfile).Where(u => u.InstructorProfile != null).ToList();
@@ -147,10 +168,22 @@ namespace E_LearningPlatform.Controllers
 
             if (user == null)
             {
-                //await userManager.UpdateAsync(studentRegisterDTO);
                 return NotFound("Instructor Not Found");
             }
 
+            var existingUser = await userManager.FindByEmailAsync(instructorAddingDTO.Email);
+            if (existingUser != null && existingUser.Id != id)
+            {
+                ModelState.AddModelError("Email", "Email is already in use");
+                return BadRequest(new
+                {
+                    message = "Validation failed",
+                    errors = new
+                    {
+                        Email = new[] { "Email is already in use" }
+                    }
+                });
+            }
             user.Email = instructorAddingDTO.Email;
             user.PhoneNumber = instructorAddingDTO.PhoneNumber;
             user.Address = instructorAddingDTO.Address;
@@ -184,7 +217,7 @@ namespace E_LearningPlatform.Controllers
 
             await context.SaveChangesAsync();
 
-            return Ok("Instructor Updated Successfully");
+            return Ok(new { message = "Instructor Updated successfully" });
 
 
         }
@@ -209,6 +242,15 @@ namespace E_LearningPlatform.Controllers
             await context.SaveChangesAsync();
 
             return Ok("Instructor is deleted Successfully");
+        }
+
+
+        [HttpGet("count")]
+        public async Task<IActionResult> GetInstructorsCount()
+        {
+            var count = await userManager.Users.Include(u => u.InstructorProfile)
+                .Where(u => u.InstructorProfile != null).CountAsync();
+            return Ok(count);
         }
     }
 }

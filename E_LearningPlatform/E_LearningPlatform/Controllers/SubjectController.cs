@@ -95,6 +95,11 @@ namespace E_LearningPlatform.Controllers
                    SubjectPrice = cts.Subject.Price,
                    SubjectDescription = cts.Subject.SubjectDescription,
                    imgUrl = cts.Subject.Instructor.Image,
+                   ClassId = cts.ClassID,
+                   ClassName = cts.Class.ClassName,
+                   TrackId = cts.TrackID,
+                   TrackName = cts.Track.TrackName,
+                   unitCount = context.Units.Count(u => u.SubjectId == cts.SubjectID)
                }).ToList();
 
             return Ok(results);
@@ -156,6 +161,39 @@ namespace E_LearningPlatform.Controllers
                 return Ok(response);
             }
             return NotFound();
+        }
+        
+        [HttpGet("GetTop3Subject")]
+        public async Task<IActionResult> GetTop3Subject()
+        {
+            var Subjects = await newSubject.TopThreeSubjects();
+            if (Subjects == null)
+                return Ok("No subjects found.");
+            return Ok(Subjects);
+        }
+
+
+
+        [HttpGet("GetPageOfSubjects")]
+        public async Task<IActionResult> GetPageOfSubjects(int pageNumber = 1, int pageSize = 10)
+        {
+            if (pageNumber <= 0) pageNumber = 1;
+            if (pageSize <= 0) pageSize = 10;
+
+            var response = await newSubject.GetPageOfSubjects(pageNumber, pageSize);
+            if (response == null)
+                return Ok("No subjects found.");
+            return Ok(response);
+        }
+
+        [HttpGet("CountNymberOfSubjects")]
+        public async Task<IActionResult> CountNymberOfSubjects()
+        {
+            var response = await newSubject.GetTotalSubjectsCount();
+            if (response == null)
+                return Ok("No subjects found.");
+            return Ok(response);
+
         }
     }
 }

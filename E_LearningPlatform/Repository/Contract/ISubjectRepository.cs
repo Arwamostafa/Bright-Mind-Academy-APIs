@@ -22,9 +22,13 @@ namespace Repository.Contract
         void UpdateById(int id, CreatedSubjectDTO updatedSubjectDTO);
 
         void Save();
-        void AddPayment(Payment payment);
-        void UpdatePayment(Payment payment);
-        Subject GetByIdWithInstructorAndPayment(int id);
+        //void AddPayment(Payment payment);
+        //void UpdatePayment(Payment payment);
+        //Subject GetByIdWithInstructorAndPayment(int id);
+
+        public Task<IEnumerable<StudentClassSubject>> GetAllSubjectPagination();
+
+        public Task<int> GetTotalSubjectsCount();
 
 
     }

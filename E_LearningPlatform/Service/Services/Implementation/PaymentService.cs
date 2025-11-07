@@ -354,24 +354,7 @@ namespace Service.Services.Implementation
 
         #endregion
 
-        //        _ISubjectRepository.UpdatePayment(existingPayment);
-
-        //        return new PaymentDTO
-        //        {
-        //            PaymentID = existingPayment.PaymentID,
-        //            PaymentIntentId = existingPayment.PaymentIntentId,
-        //            ClientSecret = existingPayment.ClientSecret,
-        //            TotalPayMent = existingPayment.TotalPayMent,
-        //            IsSuccessful = existingPayment.IsSuccessful,
-        //            SubjectID = subject.SubjectID,
-        //            SubjectName = subject.SubjectName,
-        //            StudentID = StudentId,
-        //            StudentName = student.FirstName + " " + student.LastName,
-        //            InstructorId = subject.InstructorID,
-        //            InstructorName = subject.Instructor?.Name
-        //        };
-        //    }
-        //}
+                
     }
 }
 

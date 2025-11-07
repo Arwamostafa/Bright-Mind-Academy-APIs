@@ -37,7 +37,19 @@ namespace E_LearningPlatform.Controllers
             if (ModelState.IsValid)
             {
                 ApplicationUser user = new ApplicationUser();
-
+                var existingUser = await userManager.FindByEmailAsync(adminAddingDTO.Email);
+                if (existingUser != null)
+                {
+                    ModelState.AddModelError("Email", "Email is already in use");
+                    return BadRequest(new
+                    {
+                        message = "Validation failed",
+                        errors = new
+                        {
+                            Email = new[] { "Email is already in use" }
+                        }
+                    });
+                }
                 user.Email = adminAddingDTO.Email;
                 user.PhoneNumber = adminAddingDTO.PhoneNumber;
                 user.FirstName = adminAddingDTO.FirstName;
@@ -63,7 +75,7 @@ namespace E_LearningPlatform.Controllers
                     await userManager.AddToRoleAsync(user, "Admin");
 
 
-                    return Ok("Created");
+                    return Ok(new { message = "Admin created successfully" });
                 }
 
                 foreach (var item in result.Errors)
@@ -73,7 +85,16 @@ namespace E_LearningPlatform.Controllers
 
             }
 
-            return BadRequest(ModelState);
+            return BadRequest(new
+            {
+                message = "User creation failed",
+                errors = ModelState
+             .Where(kvp => kvp.Value.Errors.Count > 0)
+             .ToDictionary(
+                 kvp => kvp.Key,
+                 kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+             )
+            });
         }
 
         [Authorize(Roles = "Admin")]
@@ -93,10 +114,10 @@ namespace E_LearningPlatform.Controllers
                 adminAddingDTO.Id = user.Id;
                 adminAddingDTO.FirstName = user.FirstName;
                 adminAddingDTO.LastName = user.LastName;
+                adminAddingDTO.fullName = user.FirstName + " " + user.LastName;
                 adminAddingDTO.PhoneNumber = user.PhoneNumber;
                 adminAddingDTO.Email = user.Email;
                 adminAddingDTO.NationalId = user.AdminProfile.NationalId;
-
                 adminAddingDTOs.Add(adminAddingDTO);
             }
 
@@ -115,9 +136,13 @@ namespace E_LearningPlatform.Controllers
 
                 UserDTO userDTO = new UserDTO()
                 {
-                    FullName = user.FirstName + " " + user.LastName,
-                    PhoneNumber = user.PhoneNumber,
-                    Email = user.Email,
+                    id = user.Id,
+                    fullName = user.FirstName + "" + user.LastName,
+                    email = user.Email,
+                    nationalId = (user.AdminProfile != null) ? user.AdminProfile.NationalId : 0,
+                    phoneNumber = user.PhoneNumber,
+                    gender = user.Gender,
+                    Address = user.Address
                 };
 
 
@@ -149,14 +174,25 @@ namespace E_LearningPlatform.Controllers
         {
 
             var user = await userManager.Users.Include(u => u.AdminProfile)
-                .SingleOrDefaultAsync(u => u.Id == id);
+                 .SingleOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
             {
-                //await userManager.UpdateAsync(studentRegisterDTO);
                 return NotFound("Admin Not Found");
             }
-
+            var existingUser = await userManager.FindByEmailAsync(adminAddingDTO.Email);
+            if (existingUser != null)
+            {
+                ModelState.AddModelError("Email", "Email is already in use");
+                return BadRequest(new
+                {
+                    message = "Validation failed",
+                    errors = new
+                    {
+                        Email = new[] { "Email is already in use" }
+                    }
+                });
+            }
             user.Email = adminAddingDTO.Email;
             user.PhoneNumber = adminAddingDTO.PhoneNumber;
             user.FirstName = adminAddingDTO.FirstName;
@@ -167,7 +203,16 @@ namespace E_LearningPlatform.Controllers
 
             if (!result.Succeeded)
             {
-                return BadRequest(result.Errors);
+                return BadRequest(new
+                {
+                    message = "User creation failed",
+                    errors = ModelState
+             .Where(kvp => kvp.Value.Errors.Count > 0)
+             .ToDictionary(
+                 kvp => kvp.Key,
+                 kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+             )
+                }); ;
             }
 
             if (user.AdminProfile != null)
@@ -177,9 +222,7 @@ namespace E_LearningPlatform.Controllers
 
             await context.SaveChangesAsync();
 
-            return Ok("Admin Updated Successfully");
-
-
+            return Ok(new { message = "Admin Updated successfully" });
         }
 
         [Authorize(Roles = "Admin")]
@@ -187,7 +230,7 @@ namespace E_LearningPlatform.Controllers
         public async Task<IActionResult> DeleteAdmin(int id)
         {
             var user = await userManager.Users.Include(u => u.AdminProfile)
-                                  .FirstOrDefaultAsync(u => u.Id == id);
+                                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
                 return NotFound("Admin Not Found");
@@ -203,6 +246,55 @@ namespace E_LearningPlatform.Controllers
             await context.SaveChangesAsync();
 
             return Ok("Admin is deleted Successfully");
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("count")]
+        public IActionResult GetAllUsersCount()
+        {
+            var UsersCount = userManager.Users.Count();
+            return Ok(UsersCount);
+        }
+        [Authorize(Roles = "Admin")]
+        [HttpGet("GetAllUsersWithRoles")]
+        public async Task<IActionResult> GetAllUsersWithRoles()
+        {
+            var users = userManager.Users.ToList();
+            var result = new List<object>();
+
+            foreach (var user in users)
+            {
+                var roles = await userManager.GetRolesAsync(user);
+                result.Add(new
+                {
+                    user.Id,
+                    user.UserName,
+                    user.Email,
+                    user.PhoneNumber,
+                    fullName = user.FirstName + " " + user.LastName,
+                    user.Gender,
+
+
+                    Roles = roles
+                });
+            }
+
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("CheckAdminEmail")]
+        public async Task<IActionResult> CheckAdminEmail(string email)
+        {
+            var user = await userManager.FindByEmailAsync(email);
+            if (user != null)
+            {
+                return Ok(new { IsAdmin = true });
+            }
+            return Ok(new { IsAdmin = false });
+
+
         }
     }
 }

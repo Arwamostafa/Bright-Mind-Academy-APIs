@@ -10,9 +10,9 @@ using Microsoft.Extensions.Options;
 
 namespace Repository
 {
-    public class AppDbContext: IdentityDbContext <ApplicationUser, ApplicationRole, int>
+    public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, int>
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options): base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { }
 
@@ -23,7 +23,7 @@ namespace Repository
 
             modelBuilder.Entity<StudentClassSubject>()
                 .HasOne(s => s.Instructor)
-                .WithMany(i=> i.StudentClassSubjects)
+                .WithMany(i => i.StudentClassSubjects)
                 .HasForeignKey(s => s.InstructorID)
                 .OnDelete(DeleteBehavior.Restrict); // Or DeleteBehavior.NoAction if i want to handle manually
 
@@ -35,13 +35,13 @@ namespace Repository
 
             modelBuilder.Entity<StudentClassSubject>()
                 .HasOne(s => s.Class)
-                .WithMany(c=>c.StudentClassSubjects)
+                .WithMany(c => c.StudentClassSubjects)
                 .HasForeignKey(s => s.ClassID)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<StudentClassSubject>()
                 .HasOne(s => s.Track)
-                .WithMany(t=>t.StudentClassSubjects)
+                .WithMany(t => t.StudentClassSubjects)
                 .HasForeignKey(s => s.TrackID)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -98,7 +98,6 @@ namespace Repository
                 .Property(e => e.Id)
                 .ValueGeneratedOnAdd();
             modelBuilder.Entity<SubjectStudent>()
-<<<<<<< HEAD
                  .HasOne(ss => ss.Student)
                  .WithMany(s => s.subjectStudents)
                  .HasForeignKey(ss => ss.StudentId);
@@ -111,46 +110,19 @@ namespace Repository
                 .WithMany(s => s.subjectStudents)
                 .HasForeignKey(ss => ss.SubjectId);
 
-=======
-                .HasKey(ss => new { ss.SubjectId, ss.StudentId });
->>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
 
             modelBuilder.Entity<SubjectStudent>()
                 .HasOne(ss => ss.Student)
                 .WithMany(s => s.subjectStudents)
                 .HasForeignKey(ss => ss.StudentId);
 
-<<<<<<< HEAD
-=======
-            modelBuilder.Entity<SubjectStudent>()
-                .HasOne(ss => ss.Subject)
-                .WithMany(s => s.subjectStudents)
-                .HasForeignKey(ss => ss.SubjectId);
-
->>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
             modelBuilder.Entity<Lesson>()
                 .HasOne(l => l.Quiz)
                 .WithOne(q => q.Lesson)
                 .HasForeignKey<quiz>(q => q.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-<<<<<<< HEAD
-       
-=======
-            modelBuilder.Entity<Payment>()
-                .HasOne(p => p.Subject)
-                .WithMany(s => s.Payments)
-                .HasForeignKey(p => p.SubjectID);
 
-            modelBuilder.Entity<Payment>()
-                .HasOne(p => p.Student)
-                .WithMany(u => u.Payments)
-                .HasForeignKey(p => p.StudentID);
-
-            modelBuilder.Entity<Payment>()
-                .HasIndex(p => new { p.StudentID, p.SubjectID })
-                .IsUnique();
->>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
             base.OnModelCreating(modelBuilder);
         }
 
@@ -165,11 +137,7 @@ namespace Repository
         public virtual DbSet<Subject> Subjects { get; set; }
         //public virtual DbSet<Student> Students { get; set; }
         public virtual DbSet<StudentClassSubject> StudentClassSubjects { get; set; }
-<<<<<<< HEAD
         //public DbSet<Payment> Payments { get; set; }
-=======
-        public DbSet<Payment> Payments { get; set; }
->>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
 
         public virtual DbSet<quiz> Quizzes { get; set; }
         public virtual DbSet<question> Questions { get; set; }
@@ -179,7 +147,7 @@ namespace Repository
 
         public virtual DbSet<SubjectStudent> SubjectStudents { get; set; }
 
-        public virtual DbSet<Chat> Chats  {get; set; }
+        public virtual DbSet<Chat> Chats { get; set; }
 
         public virtual DbSet<Lesson> Lessons { get; set; }
 

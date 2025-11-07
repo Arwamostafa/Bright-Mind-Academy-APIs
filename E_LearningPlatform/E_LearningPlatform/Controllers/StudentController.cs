@@ -112,9 +112,13 @@ namespace E_LearningPlatform.Controllers
 
                 UserDTO userDTO = new UserDTO()
                 {
-                    FullName = user.FirstName + " " + user.LastName,
-                    PhoneNumber = user.PhoneNumber,
-                    Email = user.Email,
+                    id = user.Id,
+                    fullName = user.FirstName + "" + user.LastName,
+                    email = user.Email,
+                    nationalId = (user.AdminProfile != null) ? user.AdminProfile.NationalId : 0,
+                    phoneNumber = user.PhoneNumber,
+                    gender = user.Gender,
+                    Address = user.Address
                 };
 
 
@@ -202,7 +206,13 @@ namespace E_LearningPlatform.Controllers
         }
 
 
-
+        [HttpGet("count")]
+        public async Task<IActionResult> GetStudentCount()
+        {
+            var count = await userManager.Users.Include(u => u.StudentProfile)
+                                .CountAsync(u => u.StudentProfile != null);
+            return Ok(count);
+        }
 
         //private readonly IStudentService _service;
 

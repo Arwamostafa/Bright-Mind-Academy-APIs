@@ -100,7 +100,10 @@ namespace Service.Services.Implementation
         }
 
 
-
+        public async Task<int> GetNumberOfUnitsBySubjectId(int subjectId)
+        {
+            return await _unitRepository.GetUnitsCountBySubjectId(subjectId);
+        }
 
 
         private UnitDto MapToDto(Unit unit)

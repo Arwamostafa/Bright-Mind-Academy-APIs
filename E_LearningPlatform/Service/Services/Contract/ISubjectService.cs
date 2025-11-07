@@ -21,5 +21,9 @@ namespace Service.Services.Contract
         string RemoveSubjectById(int id);
         string UpdateSubjectById(int id, CreatedSubjectDTO upSubjectDTO);
 
+        Task<List<SubjectDto>> TopThreeSubjects();
+        Task<List<SubjectDto>> GetPageOfSubjects(int pageNumber, int pageSize);
+        Task<int> GetTotalSubjectsCount();
+
     }
 }

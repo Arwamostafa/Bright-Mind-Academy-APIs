@@ -23,5 +23,10 @@ namespace Domain.DTO
         public int? InstructorId { get; set; }
 
         public string?   InstructorName { get; set; }
+
+        public decimal? Amount { get; set; }
+        public bool? IsPaid { get; set; }
+        public string? TransactionId { get; set; }
+        public string? PaymentDate { get; set; }
     }
 }

@@ -158,24 +158,41 @@ namespace Repository.Implementation
         {
             context.SaveChanges();
         }
-        public void AddPayment(Payment payment)
+
+        public async Task<IEnumerable<StudentClassSubject>> GetAllSubjectPagination()
         {
-            context.Payments.Add(payment);
-            context.SaveChanges();
+            return await context.StudentClassSubjects.Include(s => s.Subject)
+            .ThenInclude(s => s.Instructor)
+                .ThenInclude(i => i.User)
+        .Include(s => s.Class)
+        .Include(s => s.Track)
+        .ToListAsync();
         }
 
-        public void UpdatePayment(Payment payment)
+
+        public Task<int> GetTotalSubjectsCount()
         {
-            context.Payments.Update(payment);
-            context.SaveChanges();
+            return context.Subjects.CountAsync();
         }
 
-        public Subject GetByIdWithInstructorAndPayment(int id)
-        {
-            return context.Subjects
-            .Include(s => s.Instructor).Include(s => s.Payments)
-             .FirstOrDefault(s => s.SubjectID == id);
-        }
+        //public void AddPayment(Payment payment)
+        //{
+        //    context.Payments.Add(payment);
+        //    context.SaveChanges();
+        //}
+
+        //public void UpdatePayment(Payment payment)
+        //{
+        //    context.Payments.Update(payment);
+        //    context.SaveChanges();
+        //}
+
+        //public Subject GetByIdWithInstructorAndPayment(int id)
+        //{
+        //    return context.Subjects
+        //    .Include(s => s.Instructor).Include(s => s.Payments)
+        //     .FirstOrDefault(s => s.SubjectID == id);
+        //}
 
 
     }
