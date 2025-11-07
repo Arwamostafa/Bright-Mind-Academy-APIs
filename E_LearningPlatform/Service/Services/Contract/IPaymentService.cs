@@ -11,6 +11,7 @@ namespace Service.Services.Contract
 {
     public interface IPaymentService
     {
+<<<<<<< HEAD
         Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentDto dto);
         Task<string> HandlePaymentCallbackAsync(dynamic callbackData);
         public string computeHmacSha256(string message, string secret);
@@ -24,6 +25,9 @@ namespace Service.Services.Contract
 
         Task<int> NumberOfStudentInSubject(int subjectId);
 
+=======
+        Task<PaymentDTO> CreateOrUpdatePaymentAsync(int subjectId, int studentId);
+>>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
 
 
 

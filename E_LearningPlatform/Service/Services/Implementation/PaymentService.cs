@@ -7,6 +7,7 @@ using Repository;
 using Repository.Contract;
 using Repository.Implementation;
 using Service.Services.Contract;
+using Stripe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -329,6 +330,15 @@ namespace Service.Services.Implementation
                 InstructorName = payment.Subject?.Instructor?.User?.FirstName + " " + payment.Subject?.Instructor?.User?.LastName,
                 Amount = payment.Amount
 
+        //        var newPayment = new Payment
+        //        {
+        //            PaymentIntentId = paymentIntent.Id,
+        //            ClientSecret = paymentIntent.ClientSecret,
+        //            TotalPayMent = subtotal,
+        //            SubjectID = subject.SubjectID,
+        //            StudentID = StudentId,
+        //            IsSuccessful = false
+        //        };
 
             };
         }
@@ -344,7 +354,24 @@ namespace Service.Services.Implementation
 
         #endregion
 
-       
+        //        _ISubjectRepository.UpdatePayment(existingPayment);
+
+        //        return new PaymentDTO
+        //        {
+        //            PaymentID = existingPayment.PaymentID,
+        //            PaymentIntentId = existingPayment.PaymentIntentId,
+        //            ClientSecret = existingPayment.ClientSecret,
+        //            TotalPayMent = existingPayment.TotalPayMent,
+        //            IsSuccessful = existingPayment.IsSuccessful,
+        //            SubjectID = subject.SubjectID,
+        //            SubjectName = subject.SubjectName,
+        //            StudentID = StudentId,
+        //            StudentName = student.FirstName + " " + student.LastName,
+        //            InstructorId = subject.InstructorID,
+        //            InstructorName = subject.Instructor?.Name
+        //        };
+        //    }
+        //}
     }
 }
 

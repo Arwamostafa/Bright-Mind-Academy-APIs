@@ -158,7 +158,7 @@ namespace E_LearningPlatform.Controllers
 
                 var fileBytes = stream.ToArray();
                 return File(fileBytes, "application/pdf", $"Receipt_{receiptId}.pdf");
-            }
+        }
         }
 
 
@@ -181,8 +181,9 @@ namespace E_LearningPlatform.Controllers
                 return NotFound("Payment not found.");
             return Ok(payment);
         }
+            
+        
 
-       
         [HttpGet("GetPaymentDetalisBYStudentIdAndSubjectId")]
         public async Task<IActionResult> GetPaymentsByStudentIdAndSubjectId(int studentId, int subjectId)
         {

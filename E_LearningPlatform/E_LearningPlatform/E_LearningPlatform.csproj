@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+	  <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+	  <PackageReference Include="itext7" Version="9.3.0" />
+	  <PackageReference Include="itext7.bouncy-castle-adapter" Version="9.3.0" />
+	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MongoDB.Driver" Version="3.4.2" />
+    <PackageReference Include="Stripe.net" Version="48.4.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Service\Service.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <Folder Include="wwwroot\Uploads\Assignments\00de7490-6c8e-404f-8085-2c98526a3d95\" />
+    <Folder Include="wwwroot\Uploads\Assignments\4e66e386-f395-41c1-9fc8-27dbd3b84c6c\" />
+    <Folder Include="wwwroot\Uploads\Assignments\70b2672f-aca6-4f91-8a78-2af088a31279\" />
+    <Folder Include="wwwroot\Uploads\Assignments\9ac42e40-c80b-4649-8168-70ff34755e42\" />
+    <Folder Include="wwwroot\Uploads\Assignments\c9629656-271f-46bc-9a9f-cf9fc3bc8d14\" />
+    <Folder Include="wwwroot\Uploads\Assignments\dfb8f6d7-261a-4276-9568-05d75fe557e9\" />
+    <Folder Include="wwwroot\Uploads\Image\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\19854e49-03b2-4c5f-8e63-9c63a7a5ffca\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\68338185-da6f-4fdc-9f98-22b6b580ef48\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\7b556e8f-35ec-409a-be5a-951abfb8f19e\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\ceff6c56-9948-4394-89ab-4ffd222da1be\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\dc39a05c-91a8-4990-9fb7-3bdbdc2e3e58\" />
+    <Folder Include="wwwroot\Uploads\Pdfs\f70a4557-523c-4d42-9c2d-a761950ab40d\" />
+    <Folder Include="wwwroot\Uploads\Videos\0fc78878-0ea6-48c6-a59c-f47bd609b13e\" />
+    <Folder Include="wwwroot\Uploads\Videos\7ac112b2-2628-45da-a2cc-cf27e7a1932d\" />
+    <Folder Include="wwwroot\Uploads\Videos\e00b9df8-7d63-4095-bd24-8e3b89d32757\" />
+    <Folder Include="wwwroot\Uploads\Videos\f2fa8644-776a-46cf-8001-d0889fa8234b\" />
+    <Folder Include="wwwroot\Uploads\Videos\fac0fe2b-fd9c-4c16-9dd2-3155b114f621\" />
+  </ItemGroup>
+
+</Project>

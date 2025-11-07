@@ -98,6 +98,7 @@ namespace Repository
                 .Property(e => e.Id)
                 .ValueGeneratedOnAdd();
             modelBuilder.Entity<SubjectStudent>()
+<<<<<<< HEAD
                  .HasOne(ss => ss.Student)
                  .WithMany(s => s.subjectStudents)
                  .HasForeignKey(ss => ss.StudentId);
@@ -110,19 +111,46 @@ namespace Repository
                 .WithMany(s => s.subjectStudents)
                 .HasForeignKey(ss => ss.SubjectId);
 
+=======
+                .HasKey(ss => new { ss.SubjectId, ss.StudentId });
+>>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
 
             modelBuilder.Entity<SubjectStudent>()
                 .HasOne(ss => ss.Student)
                 .WithMany(s => s.subjectStudents)
                 .HasForeignKey(ss => ss.StudentId);
 
+<<<<<<< HEAD
+=======
+            modelBuilder.Entity<SubjectStudent>()
+                .HasOne(ss => ss.Subject)
+                .WithMany(s => s.subjectStudents)
+                .HasForeignKey(ss => ss.SubjectId);
+
+>>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
             modelBuilder.Entity<Lesson>()
                 .HasOne(l => l.Quiz)
                 .WithOne(q => q.Lesson)
                 .HasForeignKey<quiz>(q => q.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+<<<<<<< HEAD
        
+=======
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Subject)
+                .WithMany(s => s.Payments)
+                .HasForeignKey(p => p.SubjectID);
+
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Student)
+                .WithMany(u => u.Payments)
+                .HasForeignKey(p => p.StudentID);
+
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => new { p.StudentID, p.SubjectID })
+                .IsUnique();
+>>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
             base.OnModelCreating(modelBuilder);
         }
 
@@ -137,7 +165,11 @@ namespace Repository
         public virtual DbSet<Subject> Subjects { get; set; }
         //public virtual DbSet<Student> Students { get; set; }
         public virtual DbSet<StudentClassSubject> StudentClassSubjects { get; set; }
+<<<<<<< HEAD
         //public DbSet<Payment> Payments { get; set; }
+=======
+        public DbSet<Payment> Payments { get; set; }
+>>>>>>> e4f10751babb8d9d491d577c902a2eefa1f8570e
 
         public virtual DbSet<quiz> Quizzes { get; set; }
         public virtual DbSet<question> Questions { get; set; }
