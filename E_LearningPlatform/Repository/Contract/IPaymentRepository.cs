@@ -18,7 +18,6 @@ namespace Repository.Contract
 
         Task <int> NumberOfStudentInSubject(int subjectId);
         Task UpdatePaymentAsync(SubjectStudent subjectStudent);
-
         Task <IEnumerable<StudentClassSubject>> TopThreeSubjects();
         Task SaveAsync();
 

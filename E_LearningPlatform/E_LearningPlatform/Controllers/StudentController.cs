@@ -72,7 +72,7 @@ namespace E_LearningPlatform.Controllers
             return BadRequest(ModelState);
         }
 
-        [HttpGet]
+        [HttpGet("GetAllStudents")]
         public IActionResult GetStudents()
         {
 
@@ -83,8 +83,6 @@ namespace E_LearningPlatform.Controllers
             foreach (var user in users)
             {
                 StudentRegisterDTO studentRegisterDTO = new StudentRegisterDTO();
-
-
 
                 studentRegisterDTO.Id = user.Id;
                 studentRegisterDTO.FirstName = user.FirstName;
@@ -118,7 +116,8 @@ namespace E_LearningPlatform.Controllers
                     nationalId = (user.AdminProfile != null) ? user.AdminProfile.NationalId : 0,
                     phoneNumber = user.PhoneNumber,
                     gender = user.Gender,
-                    Address = user.Address
+                    Address = user.Address,
+                    age = (user.StudentProfile != null) ? user.StudentProfile.Age : 0
                 };
 
 
@@ -183,7 +182,7 @@ namespace E_LearningPlatform.Controllers
 
         }
 
-        [HttpDelete("{id:int}")]
+        [HttpDelete("delete/{id:int}")]
         public async Task<IActionResult> DeleteStudent(int id)
         {
             var user = await userManager.Users.Include(u => u.StudentProfile)

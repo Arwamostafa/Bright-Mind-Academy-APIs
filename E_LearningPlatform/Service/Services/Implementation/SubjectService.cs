@@ -142,5 +142,24 @@ namespace Service.Services.Implementation
         {
             return repo.GetTotalSubjectsCount();
         }
+
+        public async Task<IEnumerable<StudentRegisterDTO>> GetStudentsbySubjectIdAsync(int subjectId)
+        {
+           
+            var students = await repo.GetStudentsPaidbySubjectIdAsync(subjectId);
+            if (students == null)
+                throw new Exception("No students found for the given subject.");
+            var studentDTOs = students.Select(s => new StudentRegisterDTO
+            {
+                FirstName= s.User.FirstName,
+                LastName= s.User.LastName,
+                Email= s.User.Email?? "dont have email ",
+                PhoneNumber= s.User.PhoneNumber ?? "dont have phonenumber " ,
+                Age= s.Age,
+                Address= s.User.Address ?? "dont have address ",
+            }).ToList();
+            return studentDTOs;
+        }
+
     }
 }

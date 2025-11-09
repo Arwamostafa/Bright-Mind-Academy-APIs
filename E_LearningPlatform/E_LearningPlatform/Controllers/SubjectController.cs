@@ -162,8 +162,8 @@ namespace E_LearningPlatform.Controllers
             }
             return NotFound();
         }
-        
-        [HttpGet("GetTop3Subject")]
+
+        [HttpGet("Top3Subject")]
         public async Task<IActionResult> GetTop3Subject()
         {
             var Subjects = await newSubject.TopThreeSubjects();
@@ -194,6 +194,14 @@ namespace E_LearningPlatform.Controllers
                 return Ok("No subjects found.");
             return Ok(response);
 
+        }
+        [HttpGet("GetStudentsBySubjectId/{subjectId:int}")]
+        public async Task<IActionResult> GetStudentsBySubjectId(int subjectId)
+        {
+            var response = await newSubject.GetStudentsbySubjectIdAsync(subjectId);
+            if (response == null)
+                return Ok("No students found for the given subject.");
+            return Ok(response);
         }
     }
 }

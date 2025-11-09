@@ -25,6 +25,7 @@ namespace Repository.Contract
         //void AddPayment(Payment payment);
         //void UpdatePayment(Payment payment);
         //Subject GetByIdWithInstructorAndPayment(int id);
+        Task<IEnumerable<StudentProfile>> GetStudentsPaidbySubjectIdAsync(int subjectId);
 
         public Task<IEnumerable<StudentClassSubject>> GetAllSubjectPagination();
 

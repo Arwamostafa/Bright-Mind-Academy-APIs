@@ -17,5 +17,7 @@ namespace Domain.DTO
         public string? Address { get; set; }
 
         public long? nationalId { get; set; }
+
+        public int? age { get; set; }
     }
 }

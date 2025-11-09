@@ -14,16 +14,16 @@ namespace Repository.Implementation
 
         private readonly AppDbContext _context;
 
-        public PaymentRepository(AppDbContext context )
+        public PaymentRepository(AppDbContext context)
         {
             _context = context;
         }
         public async Task AddPayment(SubjectStudent subjectStudent)
         {
-           await  _context.SubjectStudents.AddAsync(subjectStudent);
+            await _context.SubjectStudents.AddAsync(subjectStudent);
         }
 
-      
+
 
         public async Task<IEnumerable<SubjectStudent>> GetAllPayments()
         {
@@ -34,18 +34,18 @@ namespace Repository.Implementation
                 .ToListAsync();
         }
 
-       
+
 
         public async Task<SubjectStudent?> GetPaymentByStudentIdAndSubjectId(int studentId, int subjectId)
         {
-           return  await _context.SubjectStudents
-               .Include(ps => ps.Student)
-               .ThenInclude(s => s.User)
-               .Include(ps => ps.Subject)
-               .ThenInclude(sub => sub.Instructor)
-               .ThenInclude(i => i.User)
-               .Where(ps => ps.StudentId == studentId && ps.SubjectId == subjectId)
-               .FirstOrDefaultAsync();
+            return await _context.SubjectStudents
+                .Include(ps => ps.Student)
+                .ThenInclude(s => s.User)
+                .Include(ps => ps.Subject)
+                .ThenInclude(sub => sub.Instructor)
+                .ThenInclude(i => i.User)
+                .Where(ps => ps.StudentId == studentId && ps.SubjectId == subjectId)
+                .FirstOrDefaultAsync();
 
         }
 
@@ -56,6 +56,7 @@ namespace Repository.Implementation
                 .Include(ss => ss.Subject)
                 .ThenInclude(sub => sub.Instructor).ThenInclude(i => i.User).FirstOrDefaultAsync(ss => ss.TransactionId == transactionId);
         }
+
 
         public async Task<int> NumberOfStudentInSubject(int subjectId)
         {
@@ -82,7 +83,7 @@ namespace Repository.Implementation
         .Take(3)
         .ToListAsync();
 
-    var subjectIds = topSubjects.Select(ts => ts.SubjectId).ToList();
+            var subjectIds = topSubjects.Select(ts => ts.SubjectId).ToList();
 
             var subjects = await _context.StudentClassSubjects
                 .Where(s => subjectIds.Contains(s.SubjectID))
@@ -93,18 +94,18 @@ namespace Repository.Implementation
                 .Include(s => s.Track)
                 .ToListAsync();
 
-    return subjects;
-           
+            return subjects;
+
         }
 
         public async Task UpdatePaymentAsync(SubjectStudent subjectStudent)
         {
             var ExistingPayment = await _context.SubjectStudents.FirstOrDefaultAsync(ps => ps.StudentId == subjectStudent.StudentId && ps.SubjectId == subjectStudent.SubjectId);
 
-          if(ExistingPayment==null)
+            if (ExistingPayment == null)
                 throw new KeyNotFoundException("Payment record not found.");
 
-          var properties = typeof(SubjectStudent).GetProperties();
+            var properties = typeof(SubjectStudent).GetProperties();
             foreach (var property in properties)
             {
                 var newValue = property.GetValue(subjectStudent);
@@ -116,5 +117,6 @@ namespace Repository.Implementation
             _context.SubjectStudents.Update(ExistingPayment);
             await _context.SaveChangesAsync();
         }
+
     }
 }

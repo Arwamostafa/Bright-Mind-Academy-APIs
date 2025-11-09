@@ -24,6 +24,8 @@ namespace Service.Services.Contract
         Task<List<SubjectDto>> TopThreeSubjects();
         Task<List<SubjectDto>> GetPageOfSubjects(int pageNumber, int pageSize);
         Task<int> GetTotalSubjectsCount();
+        Task<IEnumerable<StudentRegisterDTO>> GetStudentsbySubjectIdAsync(int subjectId);
+
 
     }
 }

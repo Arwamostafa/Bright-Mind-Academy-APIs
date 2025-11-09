@@ -175,6 +175,18 @@ namespace Repository.Implementation
             return context.Subjects.CountAsync();
         }
 
+        public async Task<IEnumerable<StudentProfile>> GetStudentsPaidbySubjectIdAsync(int subjectId)
+        {
+            var students = await context.SubjectStudents
+               .Where(ss => ss.SubjectId == subjectId && ss.IsPaid)
+               .Include(ss => ss.Student)
+               .ThenInclude(s => s.User)
+               .Select(ss => ss.Student).ToListAsync();
+
+            return students;
+        }
+
+
         //public void AddPayment(Payment payment)
         //{
         //    context.Payments.Add(payment);
