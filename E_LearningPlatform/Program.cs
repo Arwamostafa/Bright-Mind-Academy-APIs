@@ -13,9 +13,8 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Repository;
 using Repository.Contract;
+using Repository.Generic;
 using Repository.Implementation;
-using Repository.Repositories.Implementations;
-using RepositoryImplementation;
 using Service.Services.Contract;
 using Service.Services.Implementation;
 
@@ -67,6 +66,9 @@ namespace E_LearningPlatform
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("PlatformDBContext"));
             });
+
+            builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             builder.Services.AddScoped<IClassRepository, ClassRepository>();
             builder.Services.AddScoped<IClassService, ClassService>();

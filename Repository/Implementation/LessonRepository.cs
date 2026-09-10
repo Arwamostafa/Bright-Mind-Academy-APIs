@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RepositoryImplementation
+namespace Repository.Implementation
 {
     public class LessonRepository : ILessonRepository
     {

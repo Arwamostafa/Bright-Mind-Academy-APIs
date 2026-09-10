@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Repository.Repositories.Implementations
+namespace Repository.Implementation
 {
     public class UnitRepository : IUnitRepository
     {
