@@ -1,7 +1,6 @@
 using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Application.Repositories;
 using Application.Services.Contract;
@@ -106,7 +105,7 @@ namespace Application.Services.Implementation
             return lessons.Select(MapToLessonDto).ToList();
         }
 
-        private async Task<Result<string?>> UploadIfProvidedAsync(IFormFile? file, FileCategory category, string folderName, CancellationToken cancellationToken)
+        private async Task<Result<string?>> UploadIfProvidedAsync(IFileUpload? file, FileCategory category, string folderName, CancellationToken cancellationToken)
         {
             if (file is null)
                 return Result.Success<string?>(null);

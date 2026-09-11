@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Domain.Common;
 
 namespace Domain.DTO;
 
@@ -12,7 +12,7 @@ public class InstructorAddingDTO
     public string PhoneNumber { get; set; }
     public string Gender { get; set; }
     public string Address { get; set; }
-    public IFormFile? Image { get; set; }
+    public IFileUpload? Image { get; set; }
 
     public string? ImageURL { get; set; }
 }

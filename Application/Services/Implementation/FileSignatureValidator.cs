@@ -1,13 +1,8 @@
-using Microsoft.AspNetCore.Http;
+using Domain.Common;
 
 namespace Application.Services.Implementation;
 
-/// <summary>
-/// Validates a file's actual content against known magic-byte signatures, rather than
-/// trusting its extension or client-supplied Content-Type header, either of which a
-/// client can set to whatever it likes. Extensions with no signature listed here are
-/// let through unchecked rather than rejected.
-/// </summary>
+
 internal static class FileSignatureValidator
 {
     private static readonly Dictionary<string, (int Offset, byte[] Signature)[]> Signatures =
@@ -24,7 +19,7 @@ internal static class FileSignatureValidator
             [".docx"] = [(0, [0x50, 0x4B, 0x03, 0x04])], // zip-based (PK..)
         };
 
-    public static async Task<bool> MatchesAsync(IFormFile file, CancellationToken cancellationToken)
+    public static async Task<bool> MatchesAsync(IFileUpload file, CancellationToken cancellationToken)
     {
         var extension = Path.GetExtension(file.FileName);
         if (!Signatures.TryGetValue(extension, out var candidates))

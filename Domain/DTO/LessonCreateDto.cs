@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -19,9 +19,9 @@ public class LessonCreateDto
 
     public int UnitId { get; set; }
 
-    public IFormFile? VideoUrl { get; set; }
-    public IFormFile? PdfUrl { get; set; }
-    public IFormFile? AssigmentUrl { get; set; }
+    public IFileUpload? VideoUrl { get; set; }
+    public IFileUpload? PdfUrl { get; set; }
+    public IFileUpload? AssigmentUrl { get; set; }
 
     public DateTime? AssigmentDeadLine { get; set; }
 
