@@ -1,8 +1,9 @@
 using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
+using Domain.Options;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Repository.Generic;
 using Service.Services.Contract;
@@ -13,15 +14,15 @@ namespace Service.Services.Implementation
 {
     public class PaymentService : IPaymentService
     {
-        private readonly IConfiguration _config;
+        private readonly PaymobOptions _paymobOptions;
         private readonly IUnitOfWork _unitOfWork;
         private readonly HttpClient _httpClient;
 
         private IGenericRepository<SubjectStudent> PaymentRepo => _unitOfWork.Repository<SubjectStudent>();
 
-        public PaymentService(IConfiguration config, IUnitOfWork unitOfWork)
+        public PaymentService(IOptions<PaymobOptions> paymobOptions, IUnitOfWork unitOfWork)
         {
-            _config = config;
+            _paymobOptions = paymobOptions.Value;
             _unitOfWork = unitOfWork;
             _httpClient = new HttpClient { BaseAddress = new Uri("https://accept.paymob.com/api/") };
         }
@@ -52,7 +53,7 @@ namespace Service.Services.Implementation
             await PaymentRepo.AddAsync(subjectStudent, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             // make payment request to Paymob
-            var authBody = new { api_key = _config["Paymob:ApiKey"] };
+            var authBody = new { api_key = _paymobOptions.ApiKey };
             var authResponse = await _httpClient.PostAsync("auth/tokens", new StringContent(JsonConvert.SerializeObject(authBody), Encoding.UTF8, "application/json"), cancellationToken);
 
             if (!authResponse.IsSuccessStatusCode)
@@ -127,7 +128,7 @@ namespace Service.Services.Implementation
                     state = "NA"
                 },
                 currency = "EGP",
-                integration_id = int.Parse(_config["Paymob:IntegrationId"])
+                integration_id = _paymobOptions.IntegrationId
             };
             // make payment key request
             var paymentKeyResponse = await _httpClient.PostAsync("acceptance/payment_keys", new StringContent(JsonConvert.SerializeObject(paymentKeyRequest), Encoding.UTF8, "application/json"), cancellationToken);
@@ -148,7 +149,7 @@ namespace Service.Services.Implementation
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // get  iframe from paymob
-            string iframeUrl = $"https://accept.paymob.com/api/acceptance/iframes/{_config["Paymob:IframeId"]}?payment_token={paymentToken}";
+            string iframeUrl = $"https://accept.paymob.com/api/acceptance/iframes/{_paymobOptions.IframeId}?payment_token={paymentToken}";
 
             return new PaymentResponseDto
             {

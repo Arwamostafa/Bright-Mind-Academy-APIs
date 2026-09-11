@@ -1,4 +1,5 @@
-﻿using Domain.DTO;
+﻿using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -15,13 +16,13 @@ namespace E_LearningPlatform.Controllers
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IUnitOfWork unitOfWork;
-        private readonly ILessonService lessonService;
+        private readonly IFileService fileService;
 
-        public InstructorController(UserManager<ApplicationUser> _userManager, IUnitOfWork unitOfWork, ILessonService _lessonService)
+        public InstructorController(UserManager<ApplicationUser> _userManager, IUnitOfWork unitOfWork, IFileService fileService)
         {
             this.userManager = _userManager;
             this.unitOfWork = unitOfWork;
-            lessonService = _lessonService;
+            this.fileService = fileService;
         }
 
         [HttpPost("addingInstructor")]
@@ -35,7 +36,6 @@ namespace E_LearningPlatform.Controllers
 
             if (ModelState.IsValid)
             {
-                ApplicationUser user = new ApplicationUser();
                 var existingUser = await userManager.FindByEmailAsync(instructorAddingDTO.Email);
                 if (existingUser != null)
                 {
@@ -49,6 +49,19 @@ namespace E_LearningPlatform.Controllers
                         }
                     });
                 }
+
+                // Validate the image before creating anything, so a bad upload doesn't
+                // leave behind an Identity user with no InstructorProfile and no role.
+                string? imageUrl = null;
+                if (instructorAddingDTO.Image != null)
+                {
+                    var uploadResult = await fileService.UploadAsync(instructorAddingDTO.Image, FileCategory.Image, "Uploads/Image", cancellationToken);
+                    if (uploadResult.IsFailure)
+                        return BadRequest(new { message = uploadResult.Error.Message });
+                    imageUrl = uploadResult.Value;
+                }
+
+                ApplicationUser user = new ApplicationUser();
                 user.Email = instructorAddingDTO.Email;
                 user.PhoneNumber = instructorAddingDTO.PhoneNumber;
                 user.Address = instructorAddingDTO.Address;
@@ -64,17 +77,11 @@ namespace E_LearningPlatform.Controllers
 
                 if (result.Succeeded)
                 {
-                    InstructorProfile instructor = new InstructorProfile();
-
-
-                    instructor.UserId = user.Id;
-                    List<string> Image = new List<string>();
-                    if (instructorAddingDTO.Image != null)
+                    InstructorProfile instructor = new InstructorProfile
                     {
-                        var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Image", cancellationToken);
-                        Image.AddRange(files.Where(url => url.EndsWith(".png") || url.EndsWith(".jpg") || url.EndsWith(".jpeg")));
-                    }
-                    instructor.Image = Image.FirstOrDefault();
+                        UserId = user.Id,
+                        Image = imageUrl
+                    };
 
                     await unitOfWork.Repository<InstructorProfile>().AddAsync(instructor, cancellationToken);
                     await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -183,6 +190,19 @@ namespace E_LearningPlatform.Controllers
                     }
                 });
             }
+
+            // Validate the image before persisting anything, so a bad upload doesn't
+            // leave the profile fields partially updated.
+            string? newImageUrl = null;
+            if (user.InstructorProfile != null && instructorAddingDTO.Image != null)
+            {
+                var uploadResult = await fileService.UploadAsync(instructorAddingDTO.Image, FileCategory.Image, "Uploads/Images", cancellationToken);
+                if (uploadResult.IsFailure)
+                    return BadRequest(new { message = uploadResult.Error.Message });
+
+                newImageUrl = uploadResult.Value;
+            }
+
             user.Email = instructorAddingDTO.Email;
             user.PhoneNumber = instructorAddingDTO.PhoneNumber;
             user.Address = instructorAddingDTO.Address;
@@ -198,20 +218,9 @@ namespace E_LearningPlatform.Controllers
                 return BadRequest(result.Errors);
             }
 
-            if (user.InstructorProfile != null)
+            if (newImageUrl != null)
             {
-                if (instructorAddingDTO.Image != null)
-                {
-                    List<string> Image = new List<string>();
-                    var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Images", cancellationToken);
-                    Image.AddRange(files.Where(url => url.EndsWith(".png") || url.EndsWith(".jpg") || url.EndsWith(".jpeg")));
-
-                    var newImage = Image.FirstOrDefault();
-                    if (!string.IsNullOrEmpty(newImage))
-                    {
-                        user.InstructorProfile.Image = newImage;
-                    }
-                }
+                user.InstructorProfile!.Image = newImageUrl;
             }
 
             await unitOfWork.SaveChangesAsync(cancellationToken);

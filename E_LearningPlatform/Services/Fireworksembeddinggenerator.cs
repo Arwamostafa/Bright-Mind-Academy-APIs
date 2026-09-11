@@ -1,24 +1,18 @@
 ﻿using System.Text.Json;
 using System.Text;
-//using ZstdSharp.Unsafe;
 using System.Text.Json.Serialization;
+using Domain.Options;
+using Microsoft.Extensions.Options;
 
 namespace E_LearningPlatform.Services
 {
-    public class Fireworksembeddinggenerator
+    public class Fireworksembeddinggenerator(IOptions<FireworksOptions> options)
     {
-        private string ApiKey { get; set; }
+        private string ApiKey { get; } = options.Value.APIKey;
 
-        private string EndPoint { get; set; }
+        private string EndPoint { get; } = options.Value.Embedding.Endpoint;
 
-        private string ModelName { get; set; }
-        public Fireworksembeddinggenerator(string _ApiKey, string _EndPoint, string _ModelName)
-        {
-            ApiKey = _ApiKey;
-            EndPoint = _EndPoint;
-            ModelName = _ModelName;
-
-        }
+        private string ModelName { get; } = options.Value.Embedding.ModelName;
         public async Task<List<EmbeddingResponse>> GenerateEmbeddingsAsync(List<string> chunks)
         {
             var httpClient = new HttpClient();

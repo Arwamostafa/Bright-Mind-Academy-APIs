@@ -1,10 +1,12 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Domain.DTO;
 using Domain.Models;
+using Domain.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace E_LearningPlatform.Controllers
@@ -14,12 +16,12 @@ namespace E_LearningPlatform.Controllers
     public class LoginController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> userManager;
-        private readonly IConfiguration config;
+        private readonly JwtOptions jwtOptions;
 
-        public LoginController(UserManager<ApplicationUser> _userManager, IConfiguration _config)
+        public LoginController(UserManager<ApplicationUser> _userManager, IOptions<JwtOptions> jwtOptions)
         {
             this.userManager = _userManager;
-            config = _config;
+            this.jwtOptions = jwtOptions.Value;
         }
 
         [HttpPost("login")]
@@ -49,13 +51,13 @@ namespace E_LearningPlatform.Controllers
                             //UserClaims.Add(new Claim("role", roleName));
                         }
 
-                        var SignInkey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JWT:SCRKey"]));
+                        var SignInkey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SCRKey));
 
                         SigningCredentials signingCred = new SigningCredentials(SignInkey, SecurityAlgorithms.HmacSha256);
                         //design token
                         JwtSecurityToken mytoken = new JwtSecurityToken(
-                            audience: config["JWT:AudienceIP"],
-                            issuer: config["JWT:IssuerIP"],
+                            audience: jwtOptions.AudienceIP,
+                            issuer: jwtOptions.IssuerIP,
                             expires: DateTime.Now.AddHours(1),
                             claims: UserClaims,
                             signingCredentials: signingCred
