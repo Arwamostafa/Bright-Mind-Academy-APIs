@@ -1,81 +1,59 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Domain.Common;
 using Domain.Models;
-using Repository;
 using Repository.Contract;
+using Repository.Generic;
 using Service.Services.Contract;
 
-namespace Service.Services.Implementation
+namespace Service.Services.Implementation;
+
+public class TrackService(ITrackRepository repo, IUnitOfWork unitOfWork) : ITrackService
 {
-    public class TrackService: ITrackService
+    public Task<IReadOnlyList<Track>> GetAllTracksAsync(CancellationToken cancellationToken = default) =>
+        repo.GetAllAsync(cancellationToken);
+
+    public async Task<Result<Track>> GetTrackByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        private readonly ITrackRepository repo;
+        var track = await repo.GetByIdAsync(id, cancellationToken);
+        return track is null
+            ? Result.Failure<Track>(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."))
+            : Result.Success(track);
+    }
 
-        public TrackService(ITrackRepository _repo)
-        {
-            this.repo = _repo;
-        }
+    public async Task<Result<Track>> GetTrackByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var track = await repo.GetByNameAsync(name, cancellationToken);
+        return track is null
+            ? Result.Failure<Track>(Error.NotFound("Track.NotFound", $"Track named '{name}' was not found."))
+            : Result.Success(track);
+    }
 
-        public IEnumerable<Track> GetAllTracks()
-        {
-            return repo.GetAll();
-        }
+    public async Task<Result<Track>> AddTrackAsync(Track addedTrack, CancellationToken cancellationToken = default)
+    {
+        await repo.AddAsync(addedTrack, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success(addedTrack);
+    }
 
-        public Track GetTrackById(int id)
-        {
-            return repo.GetById(id);
-        }
+    public async Task<Result> RemoveTrackByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var track = await repo.GetByIdAsync(id, cancellationToken);
+        if (track is null)
+            return Result.Failure(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."));
 
-        public Track GetTrackByName(string name)
-        {
-            return repo.GetByName(name);
-        }
+        repo.Remove(track);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
 
-        public Track AddTrack(Track addedTrack)
-        {
-            try
-            {
-                repo.Add(addedTrack);
-                repo.Save();
-                return addedTrack;
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
-        }
+    public async Task<Result> UpdateTrackByIdAsync(int id, Track updatedTrack, CancellationToken cancellationToken = default)
+    {
+        var track = await repo.GetByIdAsync(id, cancellationToken);
+        if (track is null)
+            return Result.Failure(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."));
 
-        public string RemoveTrackById(int id)
-        {
-            try
-            {
-                repo.RemoveById(id);
-                repo.Save();
-                return "Track added Successfully";
-            }
-            catch(Exception ex)
-            {
-                return "Failed to be removed";
-            }
-        }
-        
-
-        
-        public string UpdateTrackById(int id, Track updatedTrack)
-        {
-            try
-            {
-                repo.UpdateById(id, updatedTrack);
-                repo.Save();
-                return "Track updated successfully";
-            }
-            catch( Exception ex)
-            {
-                return "Failed to be updated";
-            }
-        }
+        track.TrackName = updatedTrack.TrackName;
+        repo.Update(track);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
     }
 }

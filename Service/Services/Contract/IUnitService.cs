@@ -1,30 +1,23 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Service.Services.Contract
 {
     public interface IUnitService
     {
-        Task<IEnumerable<UnitDto>> GetAllAsync();
-        Task<UnitWithSubjectAndLessonsDto?> GetByIdAsync(int id);
+        Task<IEnumerable<UnitDto>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<Result<UnitWithSubjectAndLessonsDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
-        Task AddAsync(UnitCreateDto UnitDto);
+        Task AddAsync(UnitCreateDto unitDto, CancellationToken cancellationToken = default);
 
-        Task Update(UnitCreateDto UnitDto, int id);
+        Task<Result> Update(UnitCreateDto unitDto, int id, CancellationToken cancellationToken = default);
 
-        Task Delete(int id);
-        Task<UnitWithSubjectAndLessonsDto> GetUnitByLessonId(int lessonId);
-        Task<List<Unit>> GetUnitsBySubjectId(int subjectId);
+        Task<Result> Delete(int id, CancellationToken cancellationToken = default);
+        Task<Result<UnitWithSubjectAndLessonsDto>> GetUnitByLessonId(int lessonId, CancellationToken cancellationToken = default);
+        Task<List<Unit>> GetUnitsBySubjectId(int subjectId, CancellationToken cancellationToken = default);
 
-        Task<List<Unit>> GetUnitsBySubjectName(string subjectname);
-        Task<int> GetNumberOfUnitsBySubjectId(int subjectId);
-
-
-        //public Task<UnitDto?> GetByIdWithSubjectAsync(int id);
+        Task<List<Unit>> GetUnitsBySubjectName(string subjectname, CancellationToken cancellationToken = default);
+        Task<int> GetNumberOfUnitsBySubjectId(int subjectId, CancellationToken cancellationToken = default);
     }
 }

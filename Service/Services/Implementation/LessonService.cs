@@ -1,37 +1,23 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Repository.Contract;
+using Repository.Generic;
 using Service.Services.Contract;
-using System;
-using System.Collections.Generic;
 using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Service.Services.Implementation
 {
-    public class LessonService : ILessonService
+    public class LessonService(ILessonRepository lessonRepository, IUnitOfWork unitOfWork) : ILessonService
     {
-
-        public LessonService(ILessonRepository IlessonRepository, IUnitRepository unitRepository)
+        public async Task<IEnumerable<LessonDto>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            _IlessonRepository = IlessonRepository;
-            _IUnitRepository = unitRepository;
-        }
-
-        private readonly ILessonRepository _IlessonRepository;
-        private readonly IUnitRepository _IUnitRepository;
-
-        public async Task<IEnumerable<LessonDto>> GetAllAsync()
-        {
-            var lessons = await _IlessonRepository.GetAllAsync();
+            var lessons = await lessonRepository.GetAllWithUnitAsync(cancellationToken);
             return lessons.Select(MapToLessonDto).ToList();
         }
 
-
-        public async Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName)
+        public async Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName, CancellationToken cancellationToken = default)
         {
             if (zipFile == null || zipFile.Length == 0 || Path.GetExtension(zipFile.FileName).ToLower() != ".zip")
                 return new List<string>();
@@ -44,7 +30,7 @@ namespace Service.Services.Implementation
 
             using (var stream = new FileStream(zipPath, FileMode.Create))
             {
-                await zipFile.CopyToAsync(stream);
+                await zipFile.CopyToAsync(stream, cancellationToken);
             }
 
             List<string> allowedUrls = new List<string>();
@@ -76,30 +62,28 @@ namespace Service.Services.Implementation
                 Directory.Delete(extractPath, true);
             }
 
-
-
             return allowedUrls;
         }
 
-        public async Task AddAsync(LessonCreateDto lessonCreateDto)
+        public async Task AddAsync(LessonCreateDto lessonCreateDto, CancellationToken cancellationToken = default)
         {
             List<string> videoUrls = new List<string>();
             List<string> pdfUrls = new List<string>();
             List<string> assignmentUrls = new List<string>();
             if (lessonCreateDto.VideoUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos");
+                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos", cancellationToken);
                 videoUrls.AddRange(files.Where(url => url.EndsWith(".mp4")));
             }
             if (lessonCreateDto.PdfUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs");
+                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs", cancellationToken);
                 pdfUrls.AddRange(files.Where(url => url.EndsWith(".pdf")));
             }
 
             if (lessonCreateDto.AssigmentUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments");
+                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments", cancellationToken);
                 assignmentUrls.AddRange(files.Where(url => url.EndsWith(".pdf") || url.EndsWith(".docx")));
             }
 
@@ -114,63 +98,56 @@ namespace Service.Services.Implementation
                 AssigmentDeadLine = lessonCreateDto.AssigmentDeadLine,
                 AssigmentUrl = assignmentUrls.FirstOrDefault(),
                 PdfUrl = pdfUrls.FirstOrDefault(),
-
-
-
-
             };
-            await _IlessonRepository.AddAsync(lesson);
-            await _IlessonRepository.SaveAsync();
+            await lessonRepository.AddAsync(lesson, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task Delete(int id)
+        public async Task<Result> Delete(int id, CancellationToken cancellationToken = default)
         {
-
-            Lesson? lesson = await _IlessonRepository.GetAsync(id);
+            var lesson = await lessonRepository.GetByIdAsync(id, cancellationToken);
             if (lesson == null)
-                throw new Exception($"Lesson with id {id} not found");
-            _IlessonRepository.Delete(lesson);
-            await _IlessonRepository.SaveAsync();
+                return Result.Failure(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"));
+
+            lessonRepository.Remove(lesson);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
-
-        public async Task<LessonDto?> GetByIdAsync(int id)
+        public async Task<Result<LessonDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
+            var lesson = await lessonRepository.GetWithUnitAsync(id, cancellationToken);
+            return lesson is null
+                ? Result.Failure<LessonDto>(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"))
+                : Result.Success(MapToLessonDto(lesson));
+        }
 
-            Lesson? lesson = await _IlessonRepository.GetAsync(id);
+        public async Task<Result> Update(LessonCreateDto lessonCreateDto, int id, CancellationToken cancellationToken = default)
+        {
+            var lesson = await lessonRepository.GetByIdAsync(id, cancellationToken);
             if (lesson == null)
-                throw new Exception($"Lesson with id {id} not found");
+                return Result.Failure(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"));
 
-            return MapToLessonDto(lesson);
-        }
-
-
-
-        public async Task Update(LessonCreateDto lessonCreateDto, int id)
-        {
             List<string> videoUrls = new List<string>();
             List<string> pdfUrls = new List<string>();
             List<string> assignmentUrls = new List<string>();
             if (lessonCreateDto.VideoUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos");
+                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos", cancellationToken);
                 videoUrls.AddRange(files.Where(url => url.EndsWith(".mp4")));
             }
             if (lessonCreateDto.PdfUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs");
+                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs", cancellationToken);
                 pdfUrls.AddRange(files.Where(url => url.EndsWith(".pdf")));
             }
 
             if (lessonCreateDto.AssigmentUrl != null)
             {
-                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments");
+                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments", cancellationToken);
                 assignmentUrls.AddRange(files.Where(url => url.EndsWith(".pdf") || url.EndsWith(".docx")));
             }
 
-            Lesson? lesson = await _IlessonRepository.GetAsync(id);
-            if (lesson == null)
-                throw new Exception($"Lesson with id {id} not found");
             lesson.Title = lessonCreateDto.Title;
             lesson.Description = lessonCreateDto.Description;
             lesson.AssigmentDeadLine = lessonCreateDto.AssigmentDeadLine;
@@ -179,27 +156,25 @@ namespace Service.Services.Implementation
             lesson.VideoUrl = videoUrls.FirstOrDefault();
             lesson.UnitId = lessonCreateDto.UnitId;
 
-            _IlessonRepository.Update(lesson);
-            await _IlessonRepository.SaveAsync();
-
+            lessonRepository.Update(lesson);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
-
-
-
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitId(int unitId)
+        public async Task<IEnumerable<LessonDto>> GetLessonsByUnitId(int unitId, CancellationToken cancellationToken = default)
         {
-            return _IlessonRepository.GetLessonsByUnitId(unitId);
+            var lessons = await lessonRepository.GetLessonsByUnitIdAsync(unitId, cancellationToken);
+            return lessons.Select(MapToLessonDto).ToList();
         }
 
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitName(string unitname)
+        public async Task<IEnumerable<LessonDto>> GetLessonsByUnitName(string unitname, CancellationToken cancellationToken = default)
         {
-            return _IlessonRepository.GetLessonsByUnitName(unitname);
+            var lessons = await lessonRepository.GetLessonsByUnitNameAsync(unitname, cancellationToken);
+            return lessons.Select(MapToLessonDto).ToList();
         }
 
-        private LessonDto MapToLessonDto(Lesson lesson)
+        private static LessonDto MapToLessonDto(Lesson lesson)
         {
-
             return new LessonDto
             {
                 Id = lesson.Id,
@@ -213,8 +188,5 @@ namespace Service.Services.Implementation
                 UnitName = lesson?.Unit?.Title ?? "no unit "
             };
         }
-
-
-
     }
 }

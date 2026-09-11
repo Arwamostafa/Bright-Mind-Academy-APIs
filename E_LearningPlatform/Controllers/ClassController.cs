@@ -1,9 +1,8 @@
-﻿using Domain.Models;
+using Domain.Models;
+using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Service.Services.Contract;
-using Service.Services.Implementation;
 
 namespace E_LearningPlatform.Controllers
 {
@@ -13,77 +12,57 @@ namespace E_LearningPlatform.Controllers
     public class ClassController : ControllerBase
     {
         private readonly IClassService newClass;
-        public ClassController(IClassService  _class)
+        public ClassController(IClassService _class)
         {
             newClass = _class;
         }
 
         [HttpGet]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetAllClasses()
+        public async Task<IActionResult> GetAllClasses(CancellationToken cancellationToken)
         {
-            var response = newClass.GetAllClasses();
+            var response = await newClass.GetAllClassesAsync(cancellationToken);
             return Ok(response);
         }
 
         [HttpGet("{id:int}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetClassById(int id)
+        public async Task<IActionResult> GetClassById(int id, CancellationToken cancellationToken)
         {
-            if(id != null)
-            {
-                var response = newClass.GetClassById(id);
-                return Ok(response);
-            }
-            return NotFound();  
+            var result = await newClass.GetClassByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("{name:alpha}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetClassByName(string name)
+        public async Task<IActionResult> GetClassByName(string name, CancellationToken cancellationToken)
         {
-            if (name != null)
-            {
-                var response = newClass.GetClassByName(name);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newClass.GetClassByNameAsync(name, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPost]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult PostClass([FromBody] Class addedClass)
+        public async Task<IActionResult> PostClass([FromBody] Class addedClass, CancellationToken cancellationToken)
         {
-            if(addedClass != null)
-            {
-                var response = newClass.AddClass(addedClass);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newClass.AddClassAsync(addedClass, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPut("{id}")]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult UpdateClass(int id,[FromBody] Class upClass)
+        public async Task<IActionResult> UpdateClass(int id, [FromBody] Class upClass, CancellationToken cancellationToken)
         {
-            if (upClass != null  && id != null)
-            {
-                var response = newClass.UpdateClassById(id, upClass);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newClass.UpdateClassByIdAsync(id, upClass, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpDelete("{id}")]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult DeleteClassById(int id)
+        public async Task<IActionResult> DeleteClassById(int id, CancellationToken cancellationToken)
         {
-            if (id != null)
-            {
-                var response = newClass.RemoveClassById(id);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newClass.RemoveClassByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
     }

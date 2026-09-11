@@ -1,32 +1,21 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Service.Services.Contract
 {
     public interface IPaymentService
     {
-        Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentDto dto);
-        Task<string> HandlePaymentCallbackAsync(dynamic callbackData);
-        public string computeHmacSha256(string message, string secret);
-        Task<SubjectStudent> UpdatepaymentSuccess(string specialRefrence, decimal AmountPaid);
-        Task<SubjectStudent> UpdatepaymentFaild(string specialRefrence, decimal AmountPaid);
-        Task<PaymentDTO> GetPaymentDetailsAsync(string transactionId);
+        Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentDto dto, CancellationToken cancellationToken = default);
+        string ComputeHmacSha256(string message, string secret);
+        Task<Result<SubjectStudent>> UpdatePaymentSuccessAsync(string specialReference, decimal amountPaid, CancellationToken cancellationToken = default);
+        Task<Result<SubjectStudent>> UpdatePaymentFailedAsync(string specialReference, decimal amountPaid, CancellationToken cancellationToken = default);
+        Task<Result<PaymentDTO>> GetPaymentDetailsAsync(string transactionId, CancellationToken cancellationToken = default);
 
-        Task<List<PaymentDTO>> GetAllPayments();
+        Task<List<PaymentDTO>> GetAllPaymentsAsync(CancellationToken cancellationToken = default);
 
-        Task<PaymentDTO> GetPaymentsByStudentIdAndSubjectId(int studentId, int SubjectId);
+        Task<Result<PaymentDTO>> GetPaymentsByStudentIdAndSubjectIdAsync(int studentId, int subjectId, CancellationToken cancellationToken = default);
 
-        Task<int> NumberOfStudentInSubject(int subjectId);
-
-
-
-
-
+        Task<int> NumberOfStudentInSubjectAsync(int subjectId, CancellationToken cancellationToken = default);
     }
 }

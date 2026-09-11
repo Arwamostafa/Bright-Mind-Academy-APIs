@@ -1,25 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Domain.Models;
+using Repository.Generic;
 
-namespace Repository.Contract
+namespace Repository.Contract;
+
+public interface ITrackRepository : IGenericRepository<Track>
 {
-    public interface ITrackRepository
-    {
-        IEnumerable<Track> GetAll();
-
-        Track GetById(int id);
-
-        Track GetByName(string name);
-
-        void Add(Track addedTrack);
-
-        void RemoveById(int id);
-        void UpdateById(int id, Track updatedTrack);
-
-        void Save();
-    }
+    Task<Track?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
 }

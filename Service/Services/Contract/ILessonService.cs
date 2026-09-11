@@ -1,31 +1,24 @@
-﻿using Domain.Models;
+using Domain.Common;
 using Domain.DTO;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
 namespace Service.Services.Contract
 {
     public interface ILessonService
     {
-        Task<IEnumerable<LessonDto>> GetAllAsync();
-        Task<LessonDto?> GetByIdAsync(int id);
+        Task<IEnumerable<LessonDto>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<Result<LessonDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
-        Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName);
+        Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName, CancellationToken cancellationToken = default);
 
-        Task AddAsync(LessonCreateDto lessonDto );
+        Task AddAsync(LessonCreateDto lessonDto, CancellationToken cancellationToken = default);
 
-        Task Update(LessonCreateDto lessonDto, int id);
+        Task<Result> Update(LessonCreateDto lessonDto, int id, CancellationToken cancellationToken = default);
 
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitId(int unitId);
+        Task<IEnumerable<LessonDto>> GetLessonsByUnitId(int unitId, CancellationToken cancellationToken = default);
 
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitName(string unitname);
-       
-        Task Delete(int id);
+        Task<IEnumerable<LessonDto>> GetLessonsByUnitName(string unitname, CancellationToken cancellationToken = default);
 
-
+        Task<Result> Delete(int id, CancellationToken cancellationToken = default);
     }
 }

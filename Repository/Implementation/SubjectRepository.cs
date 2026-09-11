@@ -1,211 +1,57 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Domain.DTO;
 using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Repository.Contract;
+using Repository.Generic;
 
 namespace Repository.Implementation
 {
-    public class SubjectRepository : ISubjectRepository
+    public class SubjectRepository(AppDbContext context) : GenericRepository<Subject>(context), ISubjectRepository
     {
-        private readonly AppDbContext context;
+        public async Task<IReadOnlyList<Subject>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default) =>
+            await Query()
+                .Include(s => s.Instructor)
+                    .ThenInclude(i => i.User)
+                .Include(s => s.StudentClassSubject)
+                    .ThenInclude(scs => scs.Class)
+                .Include(s => s.StudentClassSubject)
+                    .ThenInclude(scs => scs.Track)
+                .ToListAsync(cancellationToken);
 
-        public SubjectRepository(AppDbContext _context)
-        {
-            context = _context;
-        }
-        public void Add(CreatedSubjectDTO addedSubjectDTO)
-        {
-            Subject addedSubject = new Subject()
-            {
-                SubjectName = addedSubjectDTO.SubjectName,
-                SubjectDescription = addedSubjectDTO.SubjectDescription,
-                InstructorID = addedSubjectDTO.InstructorID,
-                Price = addedSubjectDTO.Price
-            };
+        public Task<Subject?> GetByNameAsync(string name, CancellationToken cancellationToken = default) =>
+            Query().SingleOrDefaultAsync(c => c.SubjectName == name, cancellationToken);
 
-            context.Subjects.Add(addedSubject);
+        public async Task<IReadOnlyList<StudentProfile>> GetStudentsPaidBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default) =>
+            await Context.SubjectStudents
+                .AsNoTracking()
+                .Where(ss => ss.SubjectId == subjectId && ss.IsPaid)
+                .Include(ss => ss.Student)
+                    .ThenInclude(s => s.User)
+                .Select(ss => ss.Student)
+                .ToListAsync(cancellationToken);
 
-            int affectedRows = context.SaveChanges();
-            Console.WriteLine("Rows affected: " + affectedRows);
+        public async Task<IReadOnlyList<StudentClassSubject>> GetAllSubjectPaginationAsync(CancellationToken cancellationToken = default) =>
+            await Context.StudentClassSubjects
+                .AsNoTracking()
+                .Include(s => s.Subject)
+                    .ThenInclude(s => s.Instructor)
+                        .ThenInclude(i => i.User)
+                .Include(s => s.Class)
+                .Include(s => s.Track)
+                .ToListAsync(cancellationToken);
 
+        public Task<int> GetTotalSubjectsCountAsync(CancellationToken cancellationToken = default) =>
+            Query().CountAsync(cancellationToken);
 
+        public async Task<IReadOnlyList<StudentClassSubject>> GetByClassAndTrackAsync(int classId, int trackId, CancellationToken cancellationToken = default) =>
+            await Context.StudentClassSubjects
+                .AsNoTracking()
+                .Where(c => c.ClassID == classId && c.TrackID == trackId)
+                .Include(c => c.Subject)
+                    .ThenInclude(s => s.Instructor)
+                        .ThenInclude(i => i.User)
+                .ToListAsync(cancellationToken);
 
-            StudentClassSubject studentClassSubject = new StudentClassSubject()
-            {
-                SubjectID = addedSubject.SubjectID,
-                InstructorID = addedSubjectDTO.InstructorID,
-                ClassID = addedSubjectDTO.ClassID,
-                TrackID = addedSubjectDTO.TrackID,
-
-
-            };
-
-            context.StudentClassSubjects.Add(studentClassSubject);
-            int affectedRows2 = context.SaveChanges();
-            Console.WriteLine("Rows affected: " + affectedRows);
-
-            //context.Subjects.Add(addedSubject);
-        }
-
-        public List<SubjectWithUnits> GetAll()
-        {
-            List<SubjectWithUnits> subjectDTOs = new List<SubjectWithUnits>();
-
-            var classSubjects = context.Subjects
-                        .Include(s => s.Instructor)               // load Instructor
-                            .ThenInclude(i => i.User)              // load ApplicationUser
-                        .Include(s => s.StudentClassSubject)
-                            .ThenInclude(scs => scs.Class)
-                        .Include(s => s.StudentClassSubject)
-                            .ThenInclude(scs => scs.Track)
-                        .ToList();
-
-            foreach (var subject in classSubjects)
-            {
-                var scs = subject.StudentClassSubject;
-                var user = subject.Instructor?.User;
-
-                SubjectWithUnits subjectDTO = new SubjectWithUnits()
-                {
-                    SubjectID = subject.SubjectID,
-                    SubjectName = subject.SubjectName,
-                    SubjectDescription = subject.SubjectDescription,
-                    InstructorID = subject.InstructorID,
-                    InstructorName = user != null
-                        ? $"{user.FirstName} {user.LastName}"
-                        : string.Empty,
-                    ClassName = scs?.Class?.ClassName ?? string.Empty,
-                    TrackName = scs?.Track?.TrackName ?? string.Empty,
-                    Price = subject.Price,
-                    ClassID = scs.ClassID,
-                    TrackID = scs.TrackID
-                };
-
-                subjectDTOs.Add(subjectDTO);
-            }
-
-
-
-            return subjectDTOs;
-        }
-
-        public Subject GetById(int id)
-        {
-
-            return context.Subjects.FirstOrDefault(s => s.SubjectID == id);
-
-        }
-
-        public Subject GetByName(string name)
-        {
-            return context.Subjects.SingleOrDefault(c => c.SubjectName == name);
-        }
-
-        public void RemoveById(int id)
-        {
-            var removedSubject = context.Subjects.Find(id);
-            if (removedSubject != null)
-            {
-                context.Subjects.Remove(removedSubject);
-            }
-        }
-
-        public void UpdateById(int id, CreatedSubjectDTO updatedSubjectDTO)
-        {
-            var upSubject = context.Subjects.Find(id);
-            var oldClassSubject = context.StudentClassSubjects.FirstOrDefault(sc => sc.SubjectID == id);
-
-            if (upSubject != null && oldClassSubject != null)
-            {
-
-
-                upSubject.SubjectName = updatedSubjectDTO.SubjectName;
-                upSubject.SubjectDescription = updatedSubjectDTO.SubjectDescription;
-                upSubject.InstructorID = updatedSubjectDTO.InstructorID;
-                upSubject.Price = updatedSubjectDTO.Price;
-
-
-                context.SaveChanges();
-
-
-
-                context.StudentClassSubjects.Remove(oldClassSubject);
-                context.SaveChanges();
-
-
-                // Add new class-subject relationship
-                var newClassSubject = new StudentClassSubject
-                {
-                    SubjectID = id,
-                    InstructorID = updatedSubjectDTO.InstructorID,
-                    ClassID = updatedSubjectDTO.ClassID,
-                    TrackID = updatedSubjectDTO.TrackID
-                };
-
-                context.StudentClassSubjects.Add(newClassSubject);
-                context.SaveChanges();
-
-                //context.Subjects.Update(updatedSubject);
-            }
-        }
-
-        public void Save()
-        {
-            context.SaveChanges();
-        }
-
-        public async Task<IEnumerable<StudentClassSubject>> GetAllSubjectPagination()
-        {
-            return await context.StudentClassSubjects.Include(s => s.Subject)
-            .ThenInclude(s => s.Instructor)
-                .ThenInclude(i => i.User)
-        .Include(s => s.Class)
-        .Include(s => s.Track)
-        .ToListAsync();
-        }
-
-
-        public Task<int> GetTotalSubjectsCount()
-        {
-            return context.Subjects.CountAsync();
-        }
-
-        public async Task<IEnumerable<StudentProfile>> GetStudentsPaidbySubjectIdAsync(int subjectId)
-        {
-            var students = await context.SubjectStudents
-               .Where(ss => ss.SubjectId == subjectId && ss.IsPaid)
-               .Include(ss => ss.Student)
-               .ThenInclude(s => s.User)
-               .Select(ss => ss.Student).ToListAsync();
-
-            return students;
-        }
-
-
-        //public void AddPayment(Payment payment)
-        //{
-        //    context.Payments.Add(payment);
-        //    context.SaveChanges();
-        //}
-
-        //public void UpdatePayment(Payment payment)
-        //{
-        //    context.Payments.Update(payment);
-        //    context.SaveChanges();
-        //}
-
-        //public Subject GetByIdWithInstructorAndPayment(int id)
-        //{
-        //    return context.Subjects
-        //    .Include(s => s.Instructor).Include(s => s.Payments)
-        //     .FirstOrDefault(s => s.SubjectID == id);
-        //}
-
-
+        public Task<StudentClassSubject?> GetStudentClassSubjectBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default) =>
+            Context.StudentClassSubjects.FirstOrDefaultAsync(sc => sc.SubjectID == subjectId, cancellationToken);
     }
 }

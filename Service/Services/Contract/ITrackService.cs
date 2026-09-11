@@ -1,23 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Domain.Common;
 using Domain.Models;
 
-namespace Service.Services.Contract
+namespace Service.Services.Contract;
+
+public interface ITrackService
 {
-    public interface ITrackService
-    {
-        IEnumerable<Track> GetAllTracks();
+    Task<IReadOnlyList<Track>> GetAllTracksAsync(CancellationToken cancellationToken = default);
 
-        Track GetTrackById(int id);
+    Task<Result<Track>> GetTrackByIdAsync(int id, CancellationToken cancellationToken = default);
 
-        Track GetTrackByName(string name);
+    Task<Result<Track>> GetTrackByNameAsync(string name, CancellationToken cancellationToken = default);
 
-        Track AddTrack(Track addedTrack);
+    Task<Result<Track>> AddTrackAsync(Track addedTrack, CancellationToken cancellationToken = default);
 
-        string RemoveTrackById(int id);
-        string UpdateTrackById(int id, Track updatedTrack);
-    }
+    Task<Result> RemoveTrackByIdAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<Result> UpdateTrackByIdAsync(int id, Track updatedTrack, CancellationToken cancellationToken = default);
 }
