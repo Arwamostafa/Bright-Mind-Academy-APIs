@@ -4,3 +4,6 @@ obj/
 # appsettings.json
 # appsettings.Development.json
 
+# User-uploaded content - runtime data, not source
+**/wwwroot/Uploads/
+
