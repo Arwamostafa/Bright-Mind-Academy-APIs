@@ -2,12 +2,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Domain.Models;
+using Domain.Options;
 using E_LearningPlatform.Hubs;
 using E_LearningPlatform.Middleware;
 using E_LearningPlatform.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
@@ -32,30 +34,23 @@ namespace E_LearningPlatform
             builder.Services.AddProblemDetails();
 
             //  Fireworks config
-            var fireworksApiKey = builder.Configuration["Fireworks:APIKey"];
-            var embeddingEndpoint = builder.Configuration["Fireworks:Embedding:Endpoint"];
-            var embeddingModelName = builder.Configuration["Fireworks:Embedding:ModelName"];
-            var chatEndpoint = builder.Configuration["Fireworks:ChatEndPoint"];
-            var chatModelName = builder.Configuration["Fireworks:ChatModelName"];
+            builder.Services.AddOptions<FireworksOptions>()
+                .Bind(builder.Configuration.GetSection(FireworksOptions.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-            if (string.IsNullOrEmpty(fireworksApiKey) || string.IsNullOrEmpty(embeddingEndpoint))
-            {
-                throw new InvalidOperationException("Fireworks API key or endpoint is missing.");
-            }
-
-            builder.Services.AddSingleton(new Fireworksembeddinggenerator(fireworksApiKey, embeddingEndpoint, embeddingModelName));
-            builder.Services.AddSingleton(new FireWorkAiChat(fireworksApiKey, chatEndpoint, chatModelName));
+            builder.Services.AddSingleton<Fireworksembeddinggenerator>();
+            builder.Services.AddSingleton<FireWorkAiChat>();
             builder.Services.AddSingleton<RagService>();
 
             //  MongoDB config
-            var mongoConnection = builder.Configuration["Mongo:RagDbConnection"];
-            if (string.IsNullOrEmpty(mongoConnection))
-            {
-                throw new InvalidOperationException("MongoDB connection string is missing.");
-            }
+            builder.Services.AddOptions<MongoOptions>()
+                .Bind(builder.Configuration.GetSection(MongoOptions.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-            // register MongoClient twice
-            builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(mongoConnection));
+            builder.Services.AddSingleton<IMongoClient>(sp =>
+                new MongoClient(sp.GetRequiredService<IOptions<MongoOptions>>().Value.RagDbConnection));
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -76,6 +71,19 @@ namespace E_LearningPlatform
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IQuizService, QuizService>();
 
+            builder.Services.Configure<FileUploadOptions>(builder.Configuration.GetSection(FileUploadOptions.SectionName));
+            builder.Services.AddScoped<IFileService, FileService>();
+
+            builder.Services.AddOptions<PaymobOptions>()
+                .Bind(builder.Configuration.GetSection(PaymobOptions.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+            builder.Services.AddOptions<JwtOptions>()
+                .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
 
 
             builder.Services.Configure<FormOptions>(options =>
@@ -95,6 +103,9 @@ namespace E_LearningPlatform
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
             }).AddJwtBearer(options =>//verified key
             {
+                var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                    ?? throw new InvalidOperationException("JWT configuration section is missing.");
+
                 options.SaveToken = true;
                 options.RequireHttpsMetadata = true;
                 options.TokenValidationParameters = new TokenValidationParameters()
@@ -103,10 +114,10 @@ namespace E_LearningPlatform
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidAudience = builder.Configuration["JWT:AudienceIP"],
-                    ValidIssuer = builder.Configuration["JWT:IssuerIP"],
+                    ValidAudience = jwtOptions.AudienceIP,
+                    ValidIssuer = jwtOptions.IssuerIP,
                     IssuerSigningKey =
-                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:SCRKey"])),
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SCRKey)),
                     //RoleClaimType = "role"
                 };
             });

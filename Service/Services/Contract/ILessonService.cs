@@ -1,6 +1,5 @@
 using Domain.Common;
 using Domain.DTO;
-using Microsoft.AspNetCore.Http;
 
 namespace Service.Services.Contract
 {
@@ -9,9 +8,7 @@ namespace Service.Services.Contract
         Task<IEnumerable<LessonDto>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<Result<LessonDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
-        Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName, CancellationToken cancellationToken = default);
-
-        Task AddAsync(LessonCreateDto lessonDto, CancellationToken cancellationToken = default);
+        Task<Result> AddAsync(LessonCreateDto lessonDto, CancellationToken cancellationToken = default);
 
         Task<Result> Update(LessonCreateDto lessonDto, int id, CancellationToken cancellationToken = default);
 

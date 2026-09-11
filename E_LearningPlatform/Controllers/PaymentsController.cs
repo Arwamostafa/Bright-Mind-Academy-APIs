@@ -1,4 +1,5 @@
 using Domain.DTO;
+using Domain.Options;
 using E_LearningPlatform.Extensions;
 using E_LearningPlatform.Helper;
 using iText.Kernel.Pdf;
@@ -6,6 +7,7 @@ using iText.Layout;
 using iText.Layout.Element;
 using iText.Layout.Properties;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Service.Services.Contract;
 using System.Text;
 
@@ -16,12 +18,12 @@ namespace E_LearningPlatform.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
-        private readonly IConfiguration _config;
+        private readonly PaymobOptions _paymobOptions;
 
-        public PaymentsController(IPaymentService paymentService, IConfiguration config)
+        public PaymentsController(IPaymentService paymentService, IOptions<PaymobOptions> paymobOptions)
         {
             _paymentService = paymentService;
-            _config = config;
+            _paymobOptions = paymobOptions.Value;
         }
 
 
@@ -68,7 +70,7 @@ namespace E_LearningPlatform.Controllers
             }
             // Compute HMAC SHA256
             string HmacRecived = query["hmac"];
-            string calsulatedHmac = _paymentService.ComputeHmacSha256(stringConcate.ToString(), _config["Paymob:HmacSecret"]);
+            string calsulatedHmac = _paymentService.ComputeHmacSha256(stringConcate.ToString(), _paymobOptions.HmacSecret);
             // Compare HMACs
             if (HmacRecived.Equals(calsulatedHmac, StringComparison.OrdinalIgnoreCase))
             {    // HMAC is valid, process the payment

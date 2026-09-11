@@ -2,23 +2,25 @@
 using System.Text.Json;
 using System.Text;
 using System.Text.Json.Serialization;
+using Domain.Options;
+using Microsoft.Extensions.Options;
 
 namespace E_LearningPlatform.Services
 {
     public class FireWorkAiChat
     {
-       
+
             private readonly HttpClient _httpClient;
             private readonly string _apiKey;
             private readonly string _endpoint;
             private readonly string _modelName;
 
-            public FireWorkAiChat(string apiKey, string endpoint, string modelName)
+            public FireWorkAiChat(IOptions<FireworksOptions> options)
             {
                 _httpClient = new HttpClient();
-                _apiKey = apiKey;
-                _endpoint = endpoint;
-                _modelName = modelName;
+                _apiKey = options.Value.APIKey;
+                _endpoint = options.Value.ChatEndPoint;
+                _modelName = options.Value.ChatModelName;
             }
 
             public async Task<string> AskAiAsync(string prompt)

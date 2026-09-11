@@ -5,11 +5,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Repository.Generic;
 using Service.Services.Contract;
-using System.IO.Compression;
 
 namespace Service.Services.Implementation
 {
-    public class LessonService(IUnitOfWork unitOfWork) : ILessonService
+    public class LessonService(IUnitOfWork unitOfWork, IFileService fileService) : ILessonService
     {
         private IGenericRepository<Lesson> Repo => unitOfWork.Repository<Lesson>();
 
@@ -19,75 +18,16 @@ namespace Service.Services.Implementation
             return lessons.Select(MapToLessonDto).ToList();
         }
 
-        public async Task<List<string>> SaveFileAsync(IFormFile zipFile, string folderName, CancellationToken cancellationToken = default)
+        public async Task<Result> AddAsync(LessonCreateDto lessonCreateDto, CancellationToken cancellationToken = default)
         {
-            if (zipFile == null || zipFile.Length == 0 || Path.GetExtension(zipFile.FileName).ToLower() != ".zip")
-                return new List<string>();
+            var videoResult = await UploadIfProvidedAsync(lessonCreateDto.VideoUrl, FileCategory.Video, "Uploads/Videos", cancellationToken);
+            if (videoResult.IsFailure) return Result.Failure(videoResult.Error);
 
-            string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", folderName);
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
+            var pdfResult = await UploadIfProvidedAsync(lessonCreateDto.PdfUrl, FileCategory.Document, "Uploads/Pdfs", cancellationToken);
+            if (pdfResult.IsFailure) return Result.Failure(pdfResult.Error);
 
-            string zipPath = Path.Combine(uploadsFolder, Guid.NewGuid().ToString() + ".zip");
-
-            using (var stream = new FileStream(zipPath, FileMode.Create))
-            {
-                await zipFile.CopyToAsync(stream, cancellationToken);
-            }
-
-            List<string> allowedUrls = new List<string>();
-            string extractPath = Path.Combine(uploadsFolder, Guid.NewGuid().ToString());
-
-            ZipFile.ExtractToDirectory(zipPath, extractPath);
-
-            var allowedExtensions = new[] { ".pdf", ".mp4", ".mov", ".avi", ".mkv", ".png", ".jpg", ".jpeg" };
-
-            foreach (var file in Directory.GetFiles(extractPath))
-            {
-                var ext = Path.GetExtension(file).ToLower();
-                if (allowedExtensions.Contains(ext))
-                {
-                    string uniqueFileName = Guid.NewGuid().ToString() + ext;
-                    string finalPath = Path.Combine(uploadsFolder, uniqueFileName);
-                    File.Move(file, finalPath);
-
-                    string baseUrl = "https://localhost:7092";
-                    string url = $"{baseUrl}/{folderName}/{uniqueFileName}";
-                    allowedUrls.Add(url);
-                }
-            }
-
-            File.Delete(zipPath);
-
-            if (Directory.Exists(extractPath))
-            {
-                Directory.Delete(extractPath, true);
-            }
-
-            return allowedUrls;
-        }
-
-        public async Task AddAsync(LessonCreateDto lessonCreateDto, CancellationToken cancellationToken = default)
-        {
-            List<string> videoUrls = new List<string>();
-            List<string> pdfUrls = new List<string>();
-            List<string> assignmentUrls = new List<string>();
-            if (lessonCreateDto.VideoUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos", cancellationToken);
-                videoUrls.AddRange(files.Where(url => url.EndsWith(".mp4")));
-            }
-            if (lessonCreateDto.PdfUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs", cancellationToken);
-                pdfUrls.AddRange(files.Where(url => url.EndsWith(".pdf")));
-            }
-
-            if (lessonCreateDto.AssigmentUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments", cancellationToken);
-                assignmentUrls.AddRange(files.Where(url => url.EndsWith(".pdf") || url.EndsWith(".docx")));
-            }
+            var assignmentResult = await UploadIfProvidedAsync(lessonCreateDto.AssigmentUrl, FileCategory.Document, "Uploads/Assignments", cancellationToken);
+            if (assignmentResult.IsFailure) return Result.Failure(assignmentResult.Error);
 
             Lesson lesson = new Lesson
             {
@@ -96,13 +36,14 @@ namespace Service.Services.Implementation
                 Description = lessonCreateDto.Description,
                 UnitId = lessonCreateDto.UnitId,
 
-                VideoUrl = videoUrls.FirstOrDefault(),
+                VideoUrl = videoResult.Value,
                 AssigmentDeadLine = lessonCreateDto.AssigmentDeadLine,
-                AssigmentUrl = assignmentUrls.FirstOrDefault(),
-                PdfUrl = pdfUrls.FirstOrDefault(),
+                AssigmentUrl = assignmentResult.Value,
+                PdfUrl = pdfResult.Value,
             };
             await Repo.AddAsync(lesson, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
         public async Task<Result> Delete(int id, CancellationToken cancellationToken = default)
@@ -130,32 +71,22 @@ namespace Service.Services.Implementation
             if (lesson == null)
                 return Result.Failure(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"));
 
-            List<string> videoUrls = new List<string>();
-            List<string> pdfUrls = new List<string>();
-            List<string> assignmentUrls = new List<string>();
-            if (lessonCreateDto.VideoUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.VideoUrl, "Uploads/Videos", cancellationToken);
-                videoUrls.AddRange(files.Where(url => url.EndsWith(".mp4")));
-            }
-            if (lessonCreateDto.PdfUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.PdfUrl, "Uploads/Pdfs", cancellationToken);
-                pdfUrls.AddRange(files.Where(url => url.EndsWith(".pdf")));
-            }
+            var videoResult = await UploadIfProvidedAsync(lessonCreateDto.VideoUrl, FileCategory.Video, "Uploads/Videos", cancellationToken);
+            if (videoResult.IsFailure) return Result.Failure(videoResult.Error);
 
-            if (lessonCreateDto.AssigmentUrl != null)
-            {
-                var files = await SaveFileAsync(lessonCreateDto.AssigmentUrl, "Uploads/Assignments", cancellationToken);
-                assignmentUrls.AddRange(files.Where(url => url.EndsWith(".pdf") || url.EndsWith(".docx")));
-            }
+            var pdfResult = await UploadIfProvidedAsync(lessonCreateDto.PdfUrl, FileCategory.Document, "Uploads/Pdfs", cancellationToken);
+            if (pdfResult.IsFailure) return Result.Failure(pdfResult.Error);
+
+            var assignmentResult = await UploadIfProvidedAsync(lessonCreateDto.AssigmentUrl, FileCategory.Document, "Uploads/Assignments", cancellationToken);
+            if (assignmentResult.IsFailure) return Result.Failure(assignmentResult.Error);
 
             lesson.Title = lessonCreateDto.Title;
             lesson.Description = lessonCreateDto.Description;
             lesson.AssigmentDeadLine = lessonCreateDto.AssigmentDeadLine;
-            lesson.PdfUrl = pdfUrls.FirstOrDefault();
-            lesson.AssigmentUrl = assignmentUrls.FirstOrDefault();
-            lesson.VideoUrl = videoUrls.FirstOrDefault();
+            // Keep the existing file when no replacement was uploaded, instead of nulling it out.
+            lesson.PdfUrl = pdfResult.Value ?? lesson.PdfUrl;
+            lesson.AssigmentUrl = assignmentResult.Value ?? lesson.AssigmentUrl;
+            lesson.VideoUrl = videoResult.Value ?? lesson.VideoUrl;
             lesson.UnitId = lessonCreateDto.UnitId;
 
             Repo.Update(lesson);
@@ -173,6 +104,15 @@ namespace Service.Services.Implementation
         {
             var lessons = await Repo.FindAllAsync(l => l.Unit.Title == unitname, include: q => q.Include(l => l.Unit), cancellationToken: cancellationToken);
             return lessons.Select(MapToLessonDto).ToList();
+        }
+
+        private async Task<Result<string?>> UploadIfProvidedAsync(IFormFile? file, FileCategory category, string folderName, CancellationToken cancellationToken)
+        {
+            if (file is null)
+                return Result.Success<string?>(null);
+
+            var result = await fileService.UploadAsync(file, category, folderName, cancellationToken);
+            return result.IsSuccess ? Result.Success<string?>(result.Value) : Result.Failure<string?>(result.Error);
         }
 
         private static LessonDto MapToLessonDto(Lesson lesson)

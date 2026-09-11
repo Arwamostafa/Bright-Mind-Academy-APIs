@@ -37,25 +37,22 @@ namespace E_LearningPlatform.Controllers
             return result.ToActionResult(this);
         }
 
-        [RequestSizeLimit(500_000_000)]
+        // Video (7MB) + two documents (10MB each) plus multipart overhead - was 500MB, which
+        // defeated the point of the per-file size limits enforced in IFileService.
+        [RequestSizeLimit(30_000_000)]
         [HttpPost("Add")]
         //[Authorize(Roles = ("Instructor, Admin"))]
         public async Task<IActionResult> Add([FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
         {
-            if (lessonDto == null)
-                return BadRequest("Lesson data is null.");
-            await _lessonService.AddAsync(lessonDto, cancellationToken);
-            return Ok("Lesson added successfully.");
+            var result = await _lessonService.AddAsync(lessonDto, cancellationToken);
+            return result.ToActionResult(this);
         }
 
-        [RequestSizeLimit(500_000_000)]
+        [RequestSizeLimit(30_000_000)]
         [HttpPut("Update/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
         public async Task<IActionResult> Update(int id, [FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
         {
-            if (lessonDto == null)
-                return BadRequest("Lesson data is null.");
-
             var result = await _lessonService.Update(lessonDto, id, cancellationToken);
             return result.ToActionResult(this);
         }
