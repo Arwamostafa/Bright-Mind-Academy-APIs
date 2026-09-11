@@ -1,36 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Domain.DTO;
 using Domain.Models;
+using Repository.Generic;
 
 namespace Repository.Contract
 {
-    public interface ISubjectRepository
+    public interface ISubjectRepository : IGenericRepository<Subject>
     {
-        List<SubjectWithUnits> GetAll();
+        Task<IReadOnlyList<Subject>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default);
 
-        Subject GetById(int id);
+        Task<Subject?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
 
-        Subject GetByName(string name);
+        Task<IReadOnlyList<StudentProfile>> GetStudentsPaidBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default);
 
-        void Add(CreatedSubjectDTO addedSubjectDTO);
+        Task<IReadOnlyList<StudentClassSubject>> GetAllSubjectPaginationAsync(CancellationToken cancellationToken = default);
 
-        void RemoveById(int id);
-        void UpdateById(int id, CreatedSubjectDTO updatedSubjectDTO);
+        Task<int> GetTotalSubjectsCountAsync(CancellationToken cancellationToken = default);
 
-        void Save();
-        //void AddPayment(Payment payment);
-        //void UpdatePayment(Payment payment);
-        //Subject GetByIdWithInstructorAndPayment(int id);
-        Task<IEnumerable<StudentProfile>> GetStudentsPaidbySubjectIdAsync(int subjectId);
+        Task<IReadOnlyList<StudentClassSubject>> GetByClassAndTrackAsync(int classId, int trackId, CancellationToken cancellationToken = default);
 
-        public Task<IEnumerable<StudentClassSubject>> GetAllSubjectPagination();
-
-        public Task<int> GetTotalSubjectsCount();
-
-
+        Task<StudentClassSubject?> GetStudentClassSubjectBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default);
     }
 }

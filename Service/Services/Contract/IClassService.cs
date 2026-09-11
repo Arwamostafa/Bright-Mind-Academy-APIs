@@ -1,23 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Domain.Common;
 using Domain.Models;
 
-namespace Service.Services.Contract
+namespace Service.Services.Contract;
+
+public interface IClassService
 {
-    public interface IClassService
-    {
-        IEnumerable<Class> GetAllClasses();
+    Task<IReadOnlyList<Class>> GetAllClassesAsync(CancellationToken cancellationToken = default);
 
-        Class GetClassById(int id);
+    Task<Result<Class>> GetClassByIdAsync(int id, CancellationToken cancellationToken = default);
 
-        Class GetClassByName(string name);
+    Task<Result<Class>> GetClassByNameAsync(string name, CancellationToken cancellationToken = default);
 
-        Class AddClass(Class addedClass);
+    Task<Result<Class>> AddClassAsync(Class addedClass, CancellationToken cancellationToken = default);
 
-        string RemoveClassById(int id);
-        string UpdateClassById(int id, Class updatedClass);
-    }
+    Task<Result> RemoveClassByIdAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<Result> UpdateClassByIdAsync(int id, Class updatedClass, CancellationToken cancellationToken = default);
 }

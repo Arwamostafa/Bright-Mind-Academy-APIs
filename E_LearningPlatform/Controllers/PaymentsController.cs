@@ -1,21 +1,13 @@
-﻿using Domain.DTO;
-using Domain.Models;
+using Domain.DTO;
+using E_LearningPlatform.Extensions;
 using E_LearningPlatform.Helper;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
 using iText.Layout.Properties;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Repository;
 using Service.Services.Contract;
-using Service.Services.Implementation;
-using System.IO;         
 using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace E_LearningPlatform.Controllers
 {
@@ -24,23 +16,21 @@ namespace E_LearningPlatform.Controllers
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
-        private readonly AppDbContext _context;
         private readonly IConfiguration _config;
-        //private readonly ISubjectService subjectService;
 
-        public PaymentsController( IPaymentService paymentService, IConfiguration config)
+        public PaymentsController(IPaymentService paymentService, IConfiguration config)
         {
             _paymentService = paymentService;
-            //this.subjectService = subjectService;
+            _config = config;
         }
 
 
         [HttpPost("create")]
-        public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDto dto)
+        public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDto dto, CancellationToken cancellationToken)
         {
             try
             {
-                var result = await _paymentService.CreatePaymentAsync(dto);
+                var result = await _paymentService.CreatePaymentAsync(dto, cancellationToken);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -51,7 +41,7 @@ namespace E_LearningPlatform.Controllers
 
 
         [HttpGet("callback")]
-        public async Task<IActionResult> PaymentCallback()
+        public async Task<IActionResult> PaymentCallback(CancellationToken cancellationToken)
         {
             // Extract query parameters
             PaymentPageInfoDto paymentPageInfoDto = new PaymentPageInfoDto();
@@ -63,10 +53,9 @@ namespace E_LearningPlatform.Controllers
               };
             // Concatenate field values
             var stringConcate = new StringBuilder();
-            //var result = await _paymentService.HandlePaymentCallbackAsync(callbackData);
             foreach (var field in fields)
             {
-                
+
                 if (query.TryGetValue(field, out var value))
                 {
                     stringConcate.Append(value);
@@ -79,7 +68,7 @@ namespace E_LearningPlatform.Controllers
             }
             // Compute HMAC SHA256
             string HmacRecived = query["hmac"];
-            string calsulatedHmac = _paymentService.computeHmacSha256(stringConcate.ToString(), _config["Paymob:HmacSecret"]);
+            string calsulatedHmac = _paymentService.ComputeHmacSha256(stringConcate.ToString(), _config["Paymob:HmacSecret"]);
             // Compare HMACs
             if (HmacRecived.Equals(calsulatedHmac, StringComparison.OrdinalIgnoreCase))
             {    // HMAC is valid, process the payment
@@ -114,32 +103,27 @@ namespace E_LearningPlatform.Controllers
                 // Update payment status based on success and navigate to success page
                 if (Success)
                 {
-                    await _paymentService.UpdatepaymentSuccess(TransactionId, amountInEgp);
+                    await _paymentService.UpdatePaymentSuccessAsync(TransactionId!, amountInEgp, cancellationToken);
                     return Content(HtmlGenerator.GenerateSuccessHtml(paymentPageInfoDto), "text/html");
                 }
                 // Payment failed and navigate to failed page
-                await _paymentService.UpdatepaymentFaild(TransactionId, amountInEgp);
+                await _paymentService.UpdatePaymentFailedAsync(TransactionId!, amountInEgp, cancellationToken);
                 return Content(HtmlGenerator.GenerateFailedHtml(paymentPageInfoDto), "text/html");
             }
             // HMAC is invalid, possible tampering detected and navigate to security page
             return Content(HtmlGenerator.GenerateSecurityHtml(paymentPageInfoDto), "text/html");
-           
+
         }
 
 
         [HttpGet("DownloadReceipt")]
-        public async Task<IActionResult> DownloadReceipt(string receiptId)
+        public async Task<IActionResult> DownloadReceipt(string receiptId, CancellationToken cancellationToken)
         {
-
-            var payment = await _context.SubjectStudents.Include(s => s.Subject).Include(s => s.Student).ThenInclude(s => s.User).FirstOrDefaultAsync(p => p.TransactionId == receiptId);
-
-            if (payment == null)
-            {
+            var result = await _paymentService.GetPaymentDetailsAsync(receiptId, cancellationToken);
+            if (result.IsFailure)
                 return NotFound("Receipt not found.");
-            }
-            var studentName = payment.Student.User.FirstName + " " + payment.Student.User.LastName;
-            var amount = payment.Amount;
-            var date = payment.PaymentDate.ToString();
+
+            var payment = result.Value;
 
             using (var stream = new MemoryStream())
             {
@@ -149,60 +133,49 @@ namespace E_LearningPlatform.Controllers
 
                 document.Add(new Paragraph("E-Learning Platform Receipt").SetTextAlignment(TextAlignment.CENTER).SimulateBold().SetFontSize(20));
                 document.Add(new Paragraph($"Receipt ID: {receiptId}"));
-                document.Add(new Paragraph($"Student Name: {studentName}"));
-                document.Add(new Paragraph($"Amount Paid: {amount:EGP}"));
-                document.Add(new Paragraph($"Date: {date}"));
+                document.Add(new Paragraph($"Student Name: {payment.StudentName}"));
+                document.Add(new Paragraph($"Amount Paid: {payment.Amount:EGP}"));
+                document.Add(new Paragraph($"Date: {payment.PaymentDate}"));
                 document.Add(new Paragraph("Thank you for your payment!").SetTextAlignment(TextAlignment.CENTER).SimulateBold().SetFontSize(12));
 
                 document.Close();
 
                 var fileBytes = stream.ToArray();
                 return File(fileBytes, "application/pdf", $"Receipt_{receiptId}.pdf");
-        }
+            }
         }
 
 
         [HttpGet("GetAllPayments")]
-
-        public async Task<IActionResult> GetAllPayments()
+        public async Task<IActionResult> GetAllPayments(CancellationToken cancellationToken)
         {
-            var payments = await _paymentService.GetAllPayments();
+            var payments = await _paymentService.GetAllPaymentsAsync(cancellationToken);
             return Ok(payments);
-
-
         }
 
         [HttpGet("GetPaymentDetalisBYTransactionId")]
-
-        public async Task<IActionResult> GetPaymentDetalis(string transactionId)
+        public async Task<IActionResult> GetPaymentDetalis(string transactionId, CancellationToken cancellationToken)
         {
-            var payment = await _paymentService.GetPaymentDetailsAsync(transactionId);
-            if (payment == null)
-                return NotFound("Payment not found.");
-            return Ok(payment);
+            var result = await _paymentService.GetPaymentDetailsAsync(transactionId, cancellationToken);
+            return result.ToActionResult(this);
         }
-            
-        
+
+
 
         [HttpGet("GetPaymentDetalisBYStudentIdAndSubjectId")]
-        public async Task<IActionResult> GetPaymentsByStudentIdAndSubjectId(int studentId, int subjectId)
+        public async Task<IActionResult> GetPaymentsByStudentIdAndSubjectId(int studentId, int subjectId, CancellationToken cancellationToken)
         {
-            var payment = await _paymentService.GetPaymentsByStudentIdAndSubjectId(studentId, subjectId);
-            if (payment == null)
-                return NotFound("Payment not found.");
-            return Ok(payment);
+            var result = await _paymentService.GetPaymentsByStudentIdAndSubjectIdAsync(studentId, subjectId, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("NumberOfStudentsEnrolledInSubject")]
-        public async Task<IActionResult> NumberOfStudentsEnrolledInSubject(int subjectId)
+        public async Task<IActionResult> NumberOfStudentsEnrolledInSubject(int subjectId, CancellationToken cancellationToken)
         {
-            var count = await _paymentService.NumberOfStudentInSubject(subjectId);
+            var count = await _paymentService.NumberOfStudentInSubjectAsync(subjectId, cancellationToken);
             return Ok(count);
         }
 
-        
-
-
     }
-    
+
 }

@@ -1,9 +1,7 @@
-﻿using Domain.DTO;
-using Domain.Models;
+using Domain.DTO;
+using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Repository;
 using Service.Services.Contract;
 
 namespace E_LearningPlatform.Controllers
@@ -14,193 +12,109 @@ namespace E_LearningPlatform.Controllers
     public class SubjectController : ControllerBase
     {
         private readonly ISubjectService newSubject;
-        private readonly AppDbContext context;
-        public SubjectController(ISubjectService _subject, AppDbContext _context)
+        public SubjectController(ISubjectService _subject)
         {
             newSubject = _subject;
-            context = _context;
         }
 
         [HttpGet]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetAllSubjects()
+        public async Task<IActionResult> GetAllSubjects(CancellationToken cancellationToken)
         {
-            var response = newSubject.GetAllSubjects();
+            var response = await newSubject.GetAllSubjectsAsync(cancellationToken);
             return Ok(response);
         }
 
 
         [HttpGet("GetSubjectByClassIdAndTrackId/{classId:int}/{trackId:int}")]
         [AllowAnonymous]
-        public IActionResult GetSubjectByClassIdAndTrackId(int classId, int trackId)
+        public async Task<IActionResult> GetSubjectByClassIdAndTrackId(int classId, int trackId, CancellationToken cancellationToken)
         {
-            //if(classId == 0 || trackId == 0)
-            //{
-            //    var response = newSubject.GetAllSubjects();
-            //    return Ok(response);
-            //}
-            //else
-            //{
-                var results = context.StudentClassSubjects.Where(c => c.ClassID == classId && c.TrackID == trackId)
-                .Select(cts => new
-                {
-                    SubjectId = cts.SubjectID,
-                    InstructorName = cts.Subject.Instructor.User.FirstName + " " + cts.Subject.Instructor.User.LastName, 
-                    SubjectName = cts.Subject.SubjectName,
-                    SubjectPrice = cts.Subject.Price,
-                    SubjectDescription = cts.Subject.SubjectDescription,
-                    imgUrl = cts.Subject.Instructor.Image,
-                }).ToList();
-
-                return Ok(results);
-            //}
+            var results = await newSubject.GetSubjectsByClassAndTrackAsync(classId, trackId, cancellationToken);
+            return Ok(results);
         }
 
         [HttpGet("GetHomeSubjectById/{Id:int}")]
         //[AllowAnonymous]
-        public IActionResult GetHomeSubjectById(int id)
+        public async Task<IActionResult> GetHomeSubjectById(int id, CancellationToken cancellationToken)
         {
-            //if(classId == 0 || trackId == 0)
-            //{
-            //    var response = newSubject.GetAllSubjects();
-            //    return Ok(response);
-            //}
-            //else
-            //{
-            var result = context.StudentClassSubjects.Where(c => c.SubjectID == id)
-            .Select(cts => new
-            {
-                SubjectId = cts.SubjectID,
-                InstructorName = cts.Subject.Instructor.User.FirstName + " " + cts.Subject.Instructor.User.LastName,
-                SubjectName = cts.Subject.SubjectName,
-                SubjectPrice = cts.Subject.Price,
-                SubjectDescription = cts.Subject.SubjectDescription,
-                imgUrl = cts.Subject.Instructor.Image,
-            }).SingleOrDefault();
-
-            return Ok(result);
-            //}
+            var result = await newSubject.GetHomeSubjectByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("GetHomeSubjects")]
         //[AllowAnonymous]
-        public IActionResult GetHomeSubjects()
+        public async Task<IActionResult> GetHomeSubjects(CancellationToken cancellationToken)
         {
-            var results = context.StudentClassSubjects
-               .Select(cts => new
-               {
-                   SubjectId = cts.SubjectID,
-                   InstructorName = cts.Subject.Instructor.User.FirstName + " " + cts.Subject.Instructor.User.LastName,
-                   SubjectName = cts.Subject.SubjectName,
-                   SubjectPrice = cts.Subject.Price,
-                   SubjectDescription = cts.Subject.SubjectDescription,
-                   imgUrl = cts.Subject.Instructor.Image,
-                   ClassId = cts.ClassID,
-                   ClassName = cts.Class.ClassName,
-                   TrackId = cts.TrackID,
-                   TrackName = cts.Track.TrackName,
-                   unitCount = context.Units.Count(u => u.SubjectId == cts.SubjectID)
-               }).ToList();
-
+            var results = await newSubject.GetHomeSubjectsAsync(cancellationToken);
             return Ok(results);
         }
 
         [HttpGet("id/{id:int}")]
-        public IActionResult GetSubjectById(int id)
+        public async Task<IActionResult> GetSubjectById(int id, CancellationToken cancellationToken)
         {
-            if (id != null)
-            {
-                var response = newSubject.GetSubjectById(id);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newSubject.GetSubjectByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("name/{name:alpha}")]
-        public IActionResult GetSubjectByName(string name)
+        public async Task<IActionResult> GetSubjectByName(string name, CancellationToken cancellationToken)
         {
-            if (name != null)
-            {
-                var response = newSubject.GetSubjectByName(name);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newSubject.GetSubjectByNameAsync(name, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPost]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult PostSubject([FromBody] CreatedSubjectDTO subjectDTO)
+        public async Task<IActionResult> PostSubject([FromBody] CreatedSubjectDTO subjectDTO, CancellationToken cancellationToken)
         {
-            if (subjectDTO != null)
-            {
-                var response = newSubject.AddSubject(subjectDTO);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newSubject.AddSubjectAsync(subjectDTO, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPut("{id:int}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult UpdateSubject(int id, [FromBody] CreatedSubjectDTO upSubjectDTO)
+        public async Task<IActionResult> UpdateSubject(int id, [FromBody] CreatedSubjectDTO upSubjectDTO, CancellationToken cancellationToken)
         {
-            if (upSubjectDTO != null && id != null)
-            {
-                var response = newSubject.UpdateSubjectById(id, upSubjectDTO);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newSubject.UpdateSubjectByIdAsync(id, upSubjectDTO, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpDelete("{id:int}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult DeleteSubjectById(int id)
+        public async Task<IActionResult> DeleteSubjectById(int id, CancellationToken cancellationToken)
         {
-            if (id != null)
-            {
-                var response = newSubject.RemoveSubjectById(id);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newSubject.RemoveSubjectByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("Top3Subject")]
-        public async Task<IActionResult> GetTop3Subject()
+        public async Task<IActionResult> GetTop3Subject(CancellationToken cancellationToken)
         {
-            var Subjects = await newSubject.TopThreeSubjects();
-            if (Subjects == null)
-                return Ok("No subjects found.");
-            return Ok(Subjects);
+            var subjects = await newSubject.TopThreeSubjectsAsync(cancellationToken);
+            return Ok(subjects);
         }
 
 
 
         [HttpGet("GetPageOfSubjects")]
-        public async Task<IActionResult> GetPageOfSubjects(int pageNumber = 1, int pageSize = 10)
+        public async Task<IActionResult> GetPageOfSubjects(int pageNumber = 1, int pageSize = 10, CancellationToken cancellationToken = default)
         {
-            if (pageNumber <= 0) pageNumber = 1;
-            if (pageSize <= 0) pageSize = 10;
-
-            var response = await newSubject.GetPageOfSubjects(pageNumber, pageSize);
-            if (response == null)
-                return Ok("No subjects found.");
+            var response = await newSubject.GetPageOfSubjectsAsync(pageNumber, pageSize, cancellationToken);
             return Ok(response);
         }
 
         [HttpGet("CountNymberOfSubjects")]
-        public async Task<IActionResult> CountNymberOfSubjects()
+        public async Task<IActionResult> CountNymberOfSubjects(CancellationToken cancellationToken)
         {
-            var response = await newSubject.GetTotalSubjectsCount();
-            if (response == null)
-                return Ok("No subjects found.");
+            var response = await newSubject.GetTotalSubjectsCountAsync(cancellationToken);
             return Ok(response);
-
         }
+
         [HttpGet("GetStudentsBySubjectId/{subjectId:int}")]
-        public async Task<IActionResult> GetStudentsBySubjectId(int subjectId)
+        public async Task<IActionResult> GetStudentsBySubjectId(int subjectId, CancellationToken cancellationToken)
         {
-            var response = await newSubject.GetStudentsbySubjectIdAsync(subjectId);
-            if (response == null)
-                return Ok("No students found for the given subject.");
+            var response = await newSubject.GetStudentsBySubjectIdAsync(subjectId, cancellationToken);
             return Ok(response);
         }
     }

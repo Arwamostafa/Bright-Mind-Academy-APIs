@@ -1,97 +1,127 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using Repository;
 using Repository.Contract;
-using Repository.Implementation;
+using Repository.Generic;
 using Service.Services.Contract;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Service.Services.Implementation
 {
-    public class SubjectService : ISubjectService
+    public class SubjectService(ISubjectRepository repo, IPaymentRepository paymentRepository, IUnitOfWork unitOfWork) : ISubjectService
     {
-        private readonly ISubjectRepository repo;
-        private readonly IPaymentRepository _paymentRepository;
-        private readonly AppDbContext _context;
-
-
-
-        public SubjectService(ISubjectRepository _repo, AppDbContext context, IPaymentRepository paymentRepository)
+        public async Task<List<SubjectWithUnits>> GetAllSubjectsAsync(CancellationToken cancellationToken = default)
         {
-            this.repo = _repo;
-            _paymentRepository = paymentRepository;
-            _context = context;
-        }
+            var subjects = await repo.GetAllWithDetailsAsync(cancellationToken);
 
-        public List<SubjectWithUnits> GetAllSubjects()
-        {
-            return repo.GetAll();
-        }
-
-        public Subject GetSubjectById(int id)
-        {
-            return repo.GetById(id);
-        }
-
-        public Subject GetSubjectByName(string name)
-        {
-            return repo.GetByName(name);
-        }
-
-        public CreatedSubjectDTO AddSubject(CreatedSubjectDTO addedSubjectDTO)
-        {
-            try
+            return subjects.Select(subject =>
             {
-                repo.Add(addedSubjectDTO);
-                //repo.Save();
-                return addedSubjectDTO;
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
+                var scs = subject.StudentClassSubject;
+                var user = subject.Instructor?.User;
+
+                return new SubjectWithUnits
+                {
+                    SubjectID = subject.SubjectID,
+                    SubjectName = subject.SubjectName,
+                    SubjectDescription = subject.SubjectDescription,
+                    InstructorID = subject.InstructorID,
+                    InstructorName = user != null ? $"{user.FirstName} {user.LastName}" : string.Empty,
+                    ClassName = scs?.Class?.ClassName ?? string.Empty,
+                    TrackName = scs?.Track?.TrackName ?? string.Empty,
+                    Price = subject.Price,
+                    ClassID = scs?.ClassID ?? 0,
+                    TrackID = scs?.TrackID ?? 0
+                };
+            }).ToList();
         }
 
-        public string RemoveSubjectById(int id)
+        public async Task<Result<Subject>> GetSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                repo.RemoveById(id);
-                repo.Save();
-                return "Subject added Successfully";
-            }
-            catch (Exception ex)
-            {
-                return "Failed to be removed";
-            }
+            var subject = await repo.GetByIdAsync(id, cancellationToken);
+            return subject is null
+                ? Result.Failure<Subject>(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."))
+                : Result.Success(subject);
         }
 
-
-
-        public string UpdateSubjectById(int id, CreatedSubjectDTO updatedSubjectDTO)
+        public async Task<Result<Subject>> GetSubjectByNameAsync(string name, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                repo.UpdateById(id, updatedSubjectDTO);
-                repo.Save();
-                return "Subject updated successfully";
-            }
-            catch (Exception ex)
-            {
-                return $"Failed to be updated: {ex.Message}";
-            }
+            var subject = await repo.GetByNameAsync(name, cancellationToken);
+            return subject is null
+                ? Result.Failure<Subject>(Error.NotFound("Subject.NotFound", $"Subject named '{name}' was not found."))
+                : Result.Success(subject);
         }
 
-        public async Task<List<SubjectDto>> TopThreeSubjects()
+        public async Task<Result<CreatedSubjectDTO>> AddSubjectAsync(CreatedSubjectDTO addedSubjectDTO, CancellationToken cancellationToken = default)
         {
-            var subjects = await _paymentRepository.TopThreeSubjects();
-            if (subjects == null)
-                throw new Exception("No subjects found.");
+            var subject = new Subject
+            {
+                SubjectName = addedSubjectDTO.SubjectName,
+                SubjectDescription = addedSubjectDTO.SubjectDescription,
+                InstructorID = addedSubjectDTO.InstructorID,
+                Price = addedSubjectDTO.Price
+            };
+
+            await repo.AddAsync(subject, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var studentClassSubject = new StudentClassSubject
+            {
+                SubjectID = subject.SubjectID,
+                InstructorID = addedSubjectDTO.InstructorID,
+                ClassID = addedSubjectDTO.ClassID,
+                TrackID = addedSubjectDTO.TrackID
+            };
+
+            await unitOfWork.Repository<StudentClassSubject>().AddAsync(studentClassSubject, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            addedSubjectDTO.SubjectID = subject.SubjectID;
+            return Result.Success(addedSubjectDTO);
+        }
+
+        public async Task<Result> RemoveSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var subject = await repo.GetByIdAsync(id, cancellationToken);
+            if (subject is null)
+                return Result.Failure(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
+
+            repo.Remove(subject);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
+        public async Task<Result> UpdateSubjectByIdAsync(int id, CreatedSubjectDTO updatedSubjectDTO, CancellationToken cancellationToken = default)
+        {
+            var subject = await repo.GetByIdAsync(id, cancellationToken);
+            var oldClassSubject = await repo.GetStudentClassSubjectBySubjectIdAsync(id, cancellationToken);
+
+            if (subject is null || oldClassSubject is null)
+                return Result.Failure(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
+
+            subject.SubjectName = updatedSubjectDTO.SubjectName;
+            subject.SubjectDescription = updatedSubjectDTO.SubjectDescription;
+            subject.InstructorID = updatedSubjectDTO.InstructorID;
+            subject.Price = updatedSubjectDTO.Price;
+            repo.Update(subject);
+
+            var classSubjectRepo = unitOfWork.Repository<StudentClassSubject>();
+            classSubjectRepo.Remove(oldClassSubject);
+            await classSubjectRepo.AddAsync(new StudentClassSubject
+            {
+                SubjectID = id,
+                InstructorID = updatedSubjectDTO.InstructorID,
+                ClassID = updatedSubjectDTO.ClassID,
+                TrackID = updatedSubjectDTO.TrackID
+            }, cancellationToken);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+
+        public async Task<List<SubjectDto>> TopThreeSubjectsAsync(CancellationToken cancellationToken = default)
+        {
+            var subjects = await paymentRepository.TopThreeSubjectsAsync(cancellationToken);
+            var unitCounts = await GetUnitCountsAsync(subjects.Select(s => s.SubjectID), cancellationToken);
 
             return subjects.Select(s => new SubjectDto
             {
@@ -99,67 +129,128 @@ namespace Service.Services.Implementation
                 SubjectName = s.Subject?.SubjectName,
                 SubjectDescription = s.Subject?.SubjectDescription,
                 SubjectPrice = s.Subject?.Price,
-                ImgUrl = s.Instructor.Image,
+                ImgUrl = s.Instructor?.Image,
                 ClassId = s.ClassID,
                 ClassName = s.Class?.ClassName,
                 InstructorName = s.Instructor?.User?.FirstName + " " + s.Instructor?.User?.LastName,
                 TrackId = s.TrackID,
                 TrackName = s.Track?.TrackName,
-                unitCount = _context.Units.Count(u => u.SubjectId == s.SubjectID)
+                unitCount = unitCounts.GetValueOrDefault(s.SubjectID)
             }).ToList();
         }
 
-
-        public async Task<List<SubjectDto>> GetPageOfSubjects(int pageNumber = 1, int pageSize = 10)
+        public async Task<List<SubjectDto>> GetPageOfSubjectsAsync(int pageNumber = 1, int pageSize = 10, CancellationToken cancellationToken = default)
         {
             if (pageNumber <= 0) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
-            var subjects = await repo.GetAllSubjectPagination();
-            if (subjects == null)
-                throw new Exception("No subjects found.");
-            var subjectsPages = subjects
-               .Skip((pageNumber - 1) * pageSize)
-               .Take(pageSize)
-               .Select(cts => new SubjectDto
-               {
-                   SubjectId = cts.SubjectID,
-                   InstructorName = cts.Subject.Instructor.User.FirstName + " " + cts.Subject.Instructor.User.LastName,
-                   SubjectName = cts.Subject.SubjectName,
-                   SubjectPrice = cts.Subject.Price,
-                   SubjectDescription = cts.Subject.SubjectDescription,
-                   ImgUrl = cts.Subject.Instructor.Image,
-                   ClassId = cts.ClassID,
-                   ClassName = cts.Class.ClassName,
-                   TrackId = cts.TrackID,
-                   TrackName = cts.Track.TrackName,
-                   unitCount = _context.Units.Count(u => u.SubjectId == cts.SubjectID)
-               })
-               .ToList();
-            return subjectsPages;
-        }
 
-        public Task<int> GetTotalSubjectsCount()
-        {
-            return repo.GetTotalSubjectsCount();
-        }
+            var subjects = await repo.GetAllSubjectPaginationAsync(cancellationToken);
+            var page = subjects
+                .OrderBy(cts => cts.SubjectID)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
-        public async Task<IEnumerable<StudentRegisterDTO>> GetStudentsbySubjectIdAsync(int subjectId)
-        {
-           
-            var students = await repo.GetStudentsPaidbySubjectIdAsync(subjectId);
-            if (students == null)
-                throw new Exception("No students found for the given subject.");
-            var studentDTOs = students.Select(s => new StudentRegisterDTO
+            var unitCounts = await GetUnitCountsAsync(page.Select(p => p.SubjectID), cancellationToken);
+
+            return page.Select(cts => new SubjectDto
             {
-                FirstName= s.User.FirstName,
-                LastName= s.User.LastName,
-                Email= s.User.Email?? "dont have email ",
-                PhoneNumber= s.User.PhoneNumber ?? "dont have phonenumber " ,
-                Age= s.Age,
-                Address= s.User.Address ?? "dont have address ",
+                SubjectId = cts.SubjectID,
+                InstructorName = cts.Subject?.Instructor?.User?.FirstName + " " + cts.Subject?.Instructor?.User?.LastName,
+                SubjectName = cts.Subject?.SubjectName,
+                SubjectPrice = cts.Subject?.Price,
+                SubjectDescription = cts.Subject?.SubjectDescription,
+                ImgUrl = cts.Subject?.Instructor?.Image,
+                ClassId = cts.ClassID,
+                ClassName = cts.Class?.ClassName,
+                TrackId = cts.TrackID,
+                TrackName = cts.Track?.TrackName,
+                unitCount = unitCounts.GetValueOrDefault(cts.SubjectID)
             }).ToList();
-            return studentDTOs;
         }
 
+        public Task<int> GetTotalSubjectsCountAsync(CancellationToken cancellationToken = default) =>
+            repo.GetTotalSubjectsCountAsync(cancellationToken);
+
+        public async Task<IEnumerable<StudentRegisterDTO>> GetStudentsBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default)
+        {
+            var students = await repo.GetStudentsPaidBySubjectIdAsync(subjectId, cancellationToken);
+
+            return students.Select(s => new StudentRegisterDTO
+            {
+                FirstName = s.User.FirstName,
+                LastName = s.User.LastName,
+                Email = s.User.Email ?? "dont have email ",
+                PhoneNumber = s.User.PhoneNumber ?? "dont have phonenumber ",
+                Age = s.Age,
+                Address = s.User.Address ?? "dont have address ",
+            }).ToList();
+        }
+
+        public async Task<List<SubjectDto>> GetSubjectsByClassAndTrackAsync(int classId, int trackId, CancellationToken cancellationToken = default)
+        {
+            var results = await repo.GetByClassAndTrackAsync(classId, trackId, cancellationToken);
+
+            return results.Select(cts => new SubjectDto
+            {
+                SubjectId = cts.SubjectID,
+                InstructorName = cts.Subject?.Instructor?.User?.FirstName + " " + cts.Subject?.Instructor?.User?.LastName,
+                SubjectName = cts.Subject?.SubjectName,
+                SubjectPrice = cts.Subject?.Price,
+                SubjectDescription = cts.Subject?.SubjectDescription,
+                ImgUrl = cts.Subject?.Instructor?.Image
+            }).ToList();
+        }
+
+        public async Task<Result<SubjectDto>> GetHomeSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var cts = await repo.GetStudentClassSubjectBySubjectIdAsync(id, cancellationToken);
+            if (cts is null)
+                return Result.Failure<SubjectDto>(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
+
+            return Result.Success(new SubjectDto
+            {
+                SubjectId = cts.SubjectID,
+                InstructorName = cts.Subject?.Instructor?.User?.FirstName + " " + cts.Subject?.Instructor?.User?.LastName,
+                SubjectName = cts.Subject?.SubjectName,
+                SubjectPrice = cts.Subject?.Price,
+                SubjectDescription = cts.Subject?.SubjectDescription,
+                ImgUrl = cts.Subject?.Instructor?.Image
+            });
+        }
+
+        public async Task<List<SubjectDto>> GetHomeSubjectsAsync(CancellationToken cancellationToken = default)
+        {
+            var subjects = await repo.GetAllSubjectPaginationAsync(cancellationToken);
+            var unitCounts = await GetUnitCountsAsync(subjects.Select(s => s.SubjectID), cancellationToken);
+
+            return subjects.Select(cts => new SubjectDto
+            {
+                SubjectId = cts.SubjectID,
+                InstructorName = cts.Subject?.Instructor?.User?.FirstName + " " + cts.Subject?.Instructor?.User?.LastName,
+                SubjectName = cts.Subject?.SubjectName,
+                SubjectPrice = cts.Subject?.Price,
+                SubjectDescription = cts.Subject?.SubjectDescription,
+                ImgUrl = cts.Subject?.Instructor?.Image,
+                ClassId = cts.ClassID,
+                ClassName = cts.Class?.ClassName,
+                TrackId = cts.TrackID,
+                TrackName = cts.Track?.TrackName,
+                unitCount = unitCounts.GetValueOrDefault(cts.SubjectID)
+            }).ToList();
+        }
+
+        private async Task<Dictionary<int, int>> GetUnitCountsAsync(IEnumerable<int> subjectIds, CancellationToken cancellationToken)
+        {
+            var ids = subjectIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<int, int>();
+
+            return await unitOfWork.Repository<Unit>().Query()
+                .Where(u => ids.Contains(u.SubjectId))
+                .GroupBy(u => u.SubjectId)
+                .Select(g => new { SubjectId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SubjectId, x => x.Count, cancellationToken);
+        }
     }
 }

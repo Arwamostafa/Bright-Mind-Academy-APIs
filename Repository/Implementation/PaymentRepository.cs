@@ -1,122 +1,59 @@
-﻿using Domain.Models;
+using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Repository.Contract;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Repository.Generic;
 
 namespace Repository.Implementation
 {
-    public class PaymentRepository : IPaymentRepository
+    public class PaymentRepository(AppDbContext context) : GenericRepository<SubjectStudent>(context), IPaymentRepository
     {
-
-        private readonly AppDbContext _context;
-
-        public PaymentRepository(AppDbContext context)
-        {
-            _context = context;
-        }
-        public async Task AddPayment(SubjectStudent subjectStudent)
-        {
-            await _context.SubjectStudents.AddAsync(subjectStudent);
-        }
-
-
-
-        public async Task<IEnumerable<SubjectStudent>> GetAllPayments()
-        {
-            return await _context.SubjectStudents
+        public async Task<IReadOnlyList<SubjectStudent>> GetAllPaymentsAsync(CancellationToken cancellationToken = default) =>
+            await Query()
                 .Include(ps => ps.Student)
-                .ThenInclude(s => s.User)
+                    .ThenInclude(s => s.User)
                 .Include(ps => ps.Subject)
-                .ToListAsync();
-        }
+                .ToListAsync(cancellationToken);
 
-
-
-        public async Task<SubjectStudent?> GetPaymentByStudentIdAndSubjectId(int studentId, int subjectId)
-        {
-            return await _context.SubjectStudents
+        public async Task<SubjectStudent?> GetPaymentByStudentIdAndSubjectIdAsync(int studentId, int subjectId, CancellationToken cancellationToken = default) =>
+            await Query()
                 .Include(ps => ps.Student)
-                .ThenInclude(s => s.User)
+                    .ThenInclude(s => s.User)
                 .Include(ps => ps.Subject)
-                .ThenInclude(sub => sub.Instructor)
-                .ThenInclude(i => i.User)
-                .Where(ps => ps.StudentId == studentId && ps.SubjectId == subjectId)
-                .FirstOrDefaultAsync();
+                    .ThenInclude(sub => sub.Instructor)
+                        .ThenInclude(i => i.User)
+                .FirstOrDefaultAsync(ps => ps.StudentId == studentId && ps.SubjectId == subjectId, cancellationToken);
 
-        }
-
-        public async Task<SubjectStudent?> GetPaymentsDetailsByTransactionId(string transactionId)
-        {
-            return await _context.SubjectStudents
-                .Include(ss => ss.Student).ThenInclude(s => s.User)
+        public async Task<SubjectStudent?> GetPaymentsDetailsByTransactionIdAsync(string transactionId, CancellationToken cancellationToken = default) =>
+            await Query()
+                .Include(ss => ss.Student)
+                    .ThenInclude(s => s.User)
                 .Include(ss => ss.Subject)
-                .ThenInclude(sub => sub.Instructor).ThenInclude(i => i.User).FirstOrDefaultAsync(ss => ss.TransactionId == transactionId);
-        }
+                    .ThenInclude(sub => sub.Instructor)
+                        .ThenInclude(i => i.User)
+                .FirstOrDefaultAsync(ss => ss.TransactionId == transactionId, cancellationToken);
 
+        public Task<int> NumberOfStudentInSubjectAsync(int subjectId, CancellationToken cancellationToken = default) =>
+            Query().CountAsync(ss => ss.SubjectId == subjectId && ss.IsPaid, cancellationToken);
 
-        public async Task<int> NumberOfStudentInSubject(int subjectId)
+        public async Task<IReadOnlyList<StudentClassSubject>> TopThreeSubjectsAsync(CancellationToken cancellationToken = default)
         {
-            return await _context.SubjectStudents
-                .CountAsync(ss => ss.SubjectId == subjectId && ss.IsPaid);
-        }
+            var topSubjectIds = await Query()
+                .Where(ss => ss.IsPaid)
+                .GroupBy(ss => ss.SubjectId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(3)
+                .ToListAsync(cancellationToken);
 
-        public async Task SaveAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<IEnumerable<StudentClassSubject>> TopThreeSubjects()
-        {
-            var topSubjects = await _context.SubjectStudents
-        .Where(ss => ss.IsPaid)
-        .GroupBy(ss => ss.SubjectId)
-        .Select(g => new
-        {
-            SubjectId = g.Key,
-            EnrollmentCount = g.Count()
-        })
-        .OrderByDescending(g => g.EnrollmentCount)
-        .Take(3)
-        .ToListAsync();
-
-            var subjectIds = topSubjects.Select(ts => ts.SubjectId).ToList();
-
-            var subjects = await _context.StudentClassSubjects
-                .Where(s => subjectIds.Contains(s.SubjectID))
+            return await Context.StudentClassSubjects
+                .AsNoTracking()
+                .Where(s => topSubjectIds.Contains(s.SubjectID))
                 .Include(s => s.Instructor)
-                .ThenInclude(i => i.User)
+                    .ThenInclude(i => i.User)
                 .Include(s => s.Subject)
                 .Include(s => s.Class)
                 .Include(s => s.Track)
-                .ToListAsync();
-
-            return subjects;
-
+                .ToListAsync(cancellationToken);
         }
-
-        public async Task UpdatePaymentAsync(SubjectStudent subjectStudent)
-        {
-            var ExistingPayment = await _context.SubjectStudents.FirstOrDefaultAsync(ps => ps.StudentId == subjectStudent.StudentId && ps.SubjectId == subjectStudent.SubjectId);
-
-            if (ExistingPayment == null)
-                throw new KeyNotFoundException("Payment record not found.");
-
-            var properties = typeof(SubjectStudent).GetProperties();
-            foreach (var property in properties)
-            {
-                var newValue = property.GetValue(subjectStudent);
-                if (newValue != null && !Equals(newValue, property.GetValue(ExistingPayment)))
-                {
-                    property.SetValue(ExistingPayment, newValue);
-                }
-            }
-            _context.SubjectStudents.Update(ExistingPayment);
-            await _context.SaveChangesAsync();
-        }
-
     }
 }

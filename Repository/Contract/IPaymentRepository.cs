@@ -1,25 +1,18 @@
-﻿using Domain.DTO;
 using Domain.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Repository.Generic;
 
 namespace Repository.Contract
 {
-    public interface IPaymentRepository
+    public interface IPaymentRepository : IGenericRepository<SubjectStudent>
     {
-        Task AddPayment(SubjectStudent subjectStudent);
-        Task<SubjectStudent?> GetPaymentsDetailsByTransactionId(string transactionId);
-        Task <IEnumerable<SubjectStudent>> GetAllPayments();
+        Task<SubjectStudent?> GetPaymentsDetailsByTransactionIdAsync(string transactionId, CancellationToken cancellationToken = default);
 
-        Task<SubjectStudent?> GetPaymentByStudentIdAndSubjectId(int studentId, int subjectId);
+        Task<IReadOnlyList<SubjectStudent>> GetAllPaymentsAsync(CancellationToken cancellationToken = default);
 
-        Task <int> NumberOfStudentInSubject(int subjectId);
-        Task UpdatePaymentAsync(SubjectStudent subjectStudent);
-        Task <IEnumerable<StudentClassSubject>> TopThreeSubjects();
-        Task SaveAsync();
+        Task<SubjectStudent?> GetPaymentByStudentIdAndSubjectIdAsync(int studentId, int subjectId, CancellationToken cancellationToken = default);
 
+        Task<int> NumberOfStudentInSubjectAsync(int subjectId, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<StudentClassSubject>> TopThreeSubjectsAsync(CancellationToken cancellationToken = default);
     }
 }

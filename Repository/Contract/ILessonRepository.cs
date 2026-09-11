@@ -1,29 +1,16 @@
-﻿using Domain.Models;
-using Repository;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Domain.Models;
+using Repository.Generic;
 
 namespace Repository.Contract
 {
-    public interface ILessonRepository
+    public interface ILessonRepository : IGenericRepository<Lesson>
     {
-        Task<IEnumerable<Lesson>> GetAllAsync();
-        Task<Lesson?> GetAsync(int id);
+        Task<IReadOnlyList<Lesson>> GetAllWithUnitAsync(CancellationToken cancellationToken = default);
 
-        Task AddAsync(Lesson entity);
+        Task<Lesson?> GetWithUnitAsync(int id, CancellationToken cancellationToken = default);
 
-        void Update(Lesson entity);
+        Task<IReadOnlyList<Lesson>> GetLessonsByUnitIdAsync(int unitId, CancellationToken cancellationToken = default);
 
-        void Delete(Lesson lesson);
-
-        Task SaveAsync();
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitId(int unitId);
-
-        public Task<IEnumerable<Lesson>> GetLessonsByUnitName(string unitname);
-
+        Task<IReadOnlyList<Lesson>> GetLessonsByUnitNameAsync(string unitName, CancellationToken cancellationToken = default);
     }
 }

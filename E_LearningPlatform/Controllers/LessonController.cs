@@ -1,9 +1,8 @@
-﻿using Domain.DTO;
+using Domain.DTO;
+using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Http;
-using System.IO.Compression;
 using Microsoft.AspNetCore.Mvc;
 using Service.Services.Contract;
-using Service.Services.Implementation;
 using Microsoft.AspNetCore.Authorization;
 
 namespace E_LearningPlatform.Controllers
@@ -22,9 +21,9 @@ namespace E_LearningPlatform.Controllers
 
         [HttpGet("GetAll")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
-            var lessons = await _lessonService.GetAllAsync();
+            var lessons = await _lessonService.GetAllAsync(cancellationToken);
             if (lessons == null || !lessons.Any())
                 return Ok("No lessons found.");
             return Ok(lessons);
@@ -32,93 +31,61 @@ namespace E_LearningPlatform.Controllers
 
         [HttpGet("GetById/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Get(int id)
+        public async Task<IActionResult> Get(int id, CancellationToken cancellationToken)
         {
-
-            var lesson = await _lessonService.GetByIdAsync(id);
-            if (lesson == null)
-                return NotFound($"Lesson with ID {id} not found.");
-
-            return Ok(lesson);
+            var result = await _lessonService.GetByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [RequestSizeLimit(500_000_000)]
         [HttpPost("Add")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Add([FromForm] LessonCreateDto lessonDto)
+        public async Task<IActionResult> Add([FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
         {
             if (lessonDto == null)
                 return BadRequest("Lesson data is null.");
-            await _lessonService.AddAsync(lessonDto);
+            await _lessonService.AddAsync(lessonDto, cancellationToken);
             return Ok("Lesson added successfully.");
         }
 
         [RequestSizeLimit(500_000_000)]
         [HttpPut("Update/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Update(int id, [FromForm] LessonCreateDto lessonDto)
+        public async Task<IActionResult> Update(int id, [FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
         {
-            try
-            {
-                if (lessonDto == null || id == null)
-                    return BadRequest("Lesson dataot id  is null.");
-                await _lessonService.Update(lessonDto, id);
-                return Ok("Lesson updated successfully.");
-            }
-            catch (Exception ex)
-            {
-                return NotFound(ex.Message);
-            }
+            if (lessonDto == null)
+                return BadRequest("Lesson data is null.");
+
+            var result = await _lessonService.Update(lessonDto, id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpDelete("Delete/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            try
-            {
-
-                await _lessonService.Delete(id);
-                return Ok("Lesson deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return NotFound(ex.Message);
-            }
+            var result = await _lessonService.Delete(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
 
         [HttpGet("by-lesson-name/{unitName}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<ActionResult<IEnumerable<LessonDto>>> GetLessonsByUnitName(string unitName)
+        public async Task<ActionResult<IEnumerable<LessonDto>>> GetLessonsByUnitName(string unitName, CancellationToken cancellationToken)
         {
-            try
-            {
-                var lessons = await _lessonService.GetLessonsByUnitName(unitName);
-                return Ok(lessons);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(ex.Message);
-            }
+            var lessons = await _lessonService.GetLessonsByUnitName(unitName, cancellationToken);
+            return Ok(lessons);
         }
 
         [HttpGet("by-unit-id/{unitId}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<ActionResult<IEnumerable<LessonDto>>> GetLessonsByUnitId(int unitId)
+        public async Task<ActionResult<IEnumerable<LessonDto>>> GetLessonsByUnitId(int unitId, CancellationToken cancellationToken)
         {
-            try
-            {
-                if (unitId <= 0)
-                    return BadRequest("Invalid unit ID.");
+            if (unitId <= 0)
+                return BadRequest("Invalid unit ID.");
 
-                var lessons = await _lessonService.GetLessonsByUnitId(unitId);
-                return Ok(lessons);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(ex.Message);
-            }
+            var lessons = await _lessonService.GetLessonsByUnitId(unitId, cancellationToken);
+            return Ok(lessons);
         }
 
         [HttpGet("download/by-url")]

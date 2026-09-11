@@ -1,6 +1,6 @@
-﻿using Domain.Models;
+using Domain.Models;
+using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Service.Services.Contract;
 
@@ -19,70 +19,50 @@ namespace E_LearningPlatform.Controllers
 
         [HttpGet]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetAllTracks()
+        public async Task<IActionResult> GetAllTracks(CancellationToken cancellationToken)
         {
-            var response = newTrack.GetAllTracks();
+            var response = await newTrack.GetAllTracksAsync(cancellationToken);
             return Ok(response);
         }
 
         [HttpGet("{id:int}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetTrackById(int id)
+        public async Task<IActionResult> GetTrackById(int id, CancellationToken cancellationToken)
         {
-            if (id != null)
-            {
-                var response = newTrack.GetTrackById(id);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newTrack.GetTrackByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("{name:alpha}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public IActionResult GetTrackByName(string name)
+        public async Task<IActionResult> GetTrackByName(string name, CancellationToken cancellationToken)
         {
-            if (name != null)
-            {
-                var response = newTrack.GetTrackByName(name);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newTrack.GetTrackByNameAsync(name, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPost]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult PostTrack([FromBody] Track addedTrack)
+        public async Task<IActionResult> PostTrack([FromBody] Track addedTrack, CancellationToken cancellationToken)
         {
-            if (addedTrack != null)
-            {
-                var response = newTrack.AddTrack(addedTrack);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newTrack.AddTrackAsync(addedTrack, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpPut("{id}")]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult UpdateTrack(int id, [FromBody] Track upTrack)
+        public async Task<IActionResult> UpdateTrack(int id, [FromBody] Track upTrack, CancellationToken cancellationToken)
         {
-            if (upTrack != null && id != null)
-            {
-                var response = newTrack.UpdateTrackById(id, upTrack);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newTrack.UpdateTrackByIdAsync(id, upTrack, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpDelete("{id}")]
         //[Authorize(Roles = ("Admin"))]
-        public IActionResult DeleteTrackById(int id)
+        public async Task<IActionResult> DeleteTrackById(int id, CancellationToken cancellationToken)
         {
-            if (id != null)
-            {
-                var response = newTrack.RemoveTrackById(id);
-                return Ok(response);
-            }
-            return NotFound();
+            var result = await newTrack.RemoveTrackByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
     }
 }

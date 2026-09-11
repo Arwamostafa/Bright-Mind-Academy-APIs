@@ -1,30 +1,19 @@
-﻿using Domain.DTO;
 using Domain.Models;
-using Repository;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Repository.Generic;
 
-namespace Repository.Contract
+namespace Repository.Contract;
+
+public interface IUnitRepository : IGenericRepository<Unit>
 {
-    public interface IUnitRepository
-    {
-        Task<IEnumerable<Unit>> GetAllAsync();
-        Task<Unit?> GetAsync(int id);
+    Task<IReadOnlyList<Unit>> GetAllWithSubjectAsync(CancellationToken cancellationToken = default);
 
-        Task AddAsync(Unit entity);
+    Task<Unit?> GetWithDetailsAsync(int id, CancellationToken cancellationToken = default);
 
-        void Update(Unit entity);
+    Task<Unit?> GetUnitByLessonIdAsync(int lessonId, CancellationToken cancellationToken = default);
 
-        void Delete(Unit entity);
+    Task<List<Unit>> GetUnitsBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default);
 
-        Task SaveAsync();
-        public Task<Unit?> GetUnitByLessonId(int lessonId);
-        public Task<List<Unit>> GetUnitsBySubjectId(int Subjectid);
-        public Task<List<Unit>> GetUnitsBySubjectName(string subjectname);
-        Task<int> GetUnitsCountBySubjectId(int subjectId);
+    Task<List<Unit>> GetUnitsBySubjectNameAsync(string subjectName, CancellationToken cancellationToken = default);
 
-    }
+    Task<int> GetUnitsCountBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default);
 }
