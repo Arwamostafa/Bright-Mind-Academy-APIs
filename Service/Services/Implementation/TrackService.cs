@@ -1,19 +1,23 @@
 using Domain.Common;
 using Domain.Models;
-using Repository.Contract;
 using Repository.Generic;
 using Service.Services.Contract;
 
 namespace Service.Services.Implementation;
 
-public class TrackService(ITrackRepository repo, IUnitOfWork unitOfWork) : ITrackService
+public class TrackService(IUnitOfWork unitOfWork) : ITrackService
 {
+    private IGenericRepository<Track> Repo => unitOfWork.Repository<Track>();
+
     public Task<IReadOnlyList<Track>> GetAllTracksAsync(CancellationToken cancellationToken = default) =>
-        repo.GetAllAsync(cancellationToken);
+        Repo.GetAllAsync(cancellationToken);
+
+    public Task<PaginatedList<Track>> GetPageOfTracksAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default) =>
+        Repo.GetPaginatedListAsync(requestFilters, orderBy: q => q.OrderBy(t => t.TrackID), cancellationToken: cancellationToken);
 
     public async Task<Result<Track>> GetTrackByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var track = await repo.GetByIdAsync(id, cancellationToken);
+        var track = await Repo.GetByIdAsync(id, cancellationToken);
         return track is null
             ? Result.Failure<Track>(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."))
             : Result.Success(track);
@@ -21,7 +25,7 @@ public class TrackService(ITrackRepository repo, IUnitOfWork unitOfWork) : ITrac
 
     public async Task<Result<Track>> GetTrackByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        var track = await repo.GetByNameAsync(name, cancellationToken);
+        var track = await Repo.FindAsync(t => t.TrackName == name, cancellationToken: cancellationToken);
         return track is null
             ? Result.Failure<Track>(Error.NotFound("Track.NotFound", $"Track named '{name}' was not found."))
             : Result.Success(track);
@@ -29,30 +33,30 @@ public class TrackService(ITrackRepository repo, IUnitOfWork unitOfWork) : ITrac
 
     public async Task<Result<Track>> AddTrackAsync(Track addedTrack, CancellationToken cancellationToken = default)
     {
-        await repo.AddAsync(addedTrack, cancellationToken);
+        await Repo.AddAsync(addedTrack, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success(addedTrack);
     }
 
     public async Task<Result> RemoveTrackByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var track = await repo.GetByIdAsync(id, cancellationToken);
+        var track = await Repo.GetByIdAsync(id, cancellationToken);
         if (track is null)
             return Result.Failure(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."));
 
-        repo.Remove(track);
+        Repo.Remove(track);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
     public async Task<Result> UpdateTrackByIdAsync(int id, Track updatedTrack, CancellationToken cancellationToken = default)
     {
-        var track = await repo.GetByIdAsync(id, cancellationToken);
+        var track = await Repo.GetByIdAsync(id, cancellationToken);
         if (track is null)
             return Result.Failure(Error.NotFound("Track.NotFound", $"Track with id {id} was not found."));
 
         track.TrackName = updatedTrack.TrackName;
-        repo.Update(track);
+        Repo.Update(track);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }

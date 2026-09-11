@@ -1,158 +1,91 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
-using Microsoft.AspNetCore;
 using Microsoft.EntityFrameworkCore;
-using Repository;
-using Service.Services.Implementation;
+using Repository.Generic;
+using Service.Services.Contract;
 
-namespace Service.Services.Contract
+namespace Service.Services.Implementation
 {
-    public class QuizService : IQuizService
+    public class QuizService(IUnitOfWork unitOfWork) : IQuizService
     {
-        private readonly AppDbContext db;
+        private IGenericRepository<Quiz> Repo => unitOfWork.Repository<Quiz>();
 
-        public QuizService(AppDbContext _db)
+        public async Task<List<QuizDto>> GetAllQuizzesAsync(CancellationToken cancellationToken = default)
         {
-            db = _db;
+            var quizzes = await Repo.FindAllAsync(include: q => q.Include(x => x.Questions).ThenInclude(x => x.Options), cancellationToken: cancellationToken);
+            return quizzes.Select(MapToDto).ToList();
         }
-        public List<quizdto> getallquizzes()
+
+        public async Task<Result<QuizDto>> GetQuizByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var quizzes = db.Quizzes.Include(q => q.Questions).ThenInclude(q => q.Options).ToList();
-            List<quizdto> quizdtos = new List<quizdto>();
-            foreach (var item in quizzes)
+            var quiz = await Repo.FindAsync(
+                q => q.Id == id,
+                include: q => q.Include(x => x.Questions).ThenInclude(x => x.Options),
+                cancellationToken: cancellationToken);
+            return quiz is null
+                ? Result.Failure<QuizDto>(Error.NotFound("Quiz.NotFound", $"No quiz with id {id}."))
+                : Result.Success(MapToDto(quiz));
+        }
+
+        public async Task<Result<QuizDto>> AddQuizAsync(QuizDto quizDto, CancellationToken cancellationToken = default)
+        {
+            var exists = await Repo.AnyAsync(q => q.Id == quizDto.Id, cancellationToken);
+            if (exists)
+                return Result.Failure<QuizDto>(Error.Conflict("Quiz.AlreadyExists", "Quiz already exists."));
+
+            var quiz = new Quiz
             {
-                quizdto quizdto = new quizdto();
-                quizdto.Id = item.Id;
-                quizdto.AssignedBefore = item.AssignedBefore;
-                quizdto.Description = item.Description;
-                quizdto.TotalMarks = item.TotalMarks;
-                quizdto.LessonId = item.LessonId;
-                foreach (var question in item.Questions)
+                Description = quizDto.Description,
+                AssignedBefore = quizDto.AssignedBefore,
+                TotalMarks = quizDto.TotalMarks,
+                LessonId = quizDto.LessonId,
+                Questions = quizDto.Questions?.Select(q => new Question
                 {
-                    questiondto questiondto = new questiondto();
-                    questiondto.id = question.id;
-                    questiondto.mark = question.mark;
-                    questiondto.Content = question.Content;
-                    foreach (var option in question.Options)
+                    Content = q.Content,
+                    mark = q.mark,
+                    Options = q.Options.Select(o => new Option
                     {
-                        optiondto optiondto = new optiondto();
-                        optiondto.id = option.id;
-                        optiondto.Name = option.Name;
-                        optiondto.IsCorrect = option.IsCorrect;
-                        questiondto.Options.Add(optiondto);
-                    }
-                    quizdto.Questions.Add(questiondto);
-                }
-                quizdtos.Add(quizdto);
-            }
-            return quizdtos;
-        }
-        public int addquiz(quizdto q)
-        {
-            if (q == null) return 0;
-
-            var found = db.Quizzes.FirstOrDefault(x => x.Id == q.Id);
-            if (found != null) return -1;
-
-            var quiz = new quiz
-            {
-                Description = q.Description,
-                AssignedBefore = q.AssignedBefore,
-                TotalMarks = q.TotalMarks,
-                LessonId = q.LessonId,
-                Questions = new List<question>()
+                        Name = o.Name,
+                        IsCorrect = o.IsCorrect
+                    }).ToList()
+                }).ToList() ?? new List<Question>()
             };
 
-            foreach (var item in q.Questions)
-            {
-                var question = new question
-                {
-                    Content = item.Content,
-                    mark = item.mark,
-                    Options = new List<option>()
-                };
+            await Repo.AddAsync(quiz, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-                foreach (var opt in item.Options)
-                {
-                    var option = new option
-                    {
-                        Name = opt.Name,
-                        IsCorrect = opt.IsCorrect
-                    };
-                    question.Options.Add(option);
-                }
-
-                quiz.Questions.Add(question);
-            }
-
-            db.Quizzes.Add(quiz);
-            db.SaveChanges();
-
-            return quiz.Id;
+            quizDto.Id = quiz.Id;
+            return Result.Success(quizDto);
         }
 
-        public quizdto getquiz(int id)
+        public async Task<Result> UpdateQuizAsync(QuizDto quizDto, CancellationToken cancellationToken = default)
         {
-            var q = db.Quizzes.Include(q => q.Questions).ThenInclude(q => q.Options).FirstOrDefault(q => q.Id == id);
-            if (q != null)
-            {
-                quizdto quizdto = new quizdto();
-                quizdto.Id = q.Id;
-                quizdto.AssignedBefore = q.AssignedBefore;
-                quizdto.Description = q.Description;
-                quizdto.TotalMarks = q.TotalMarks;
-                quizdto.LessonId = q.LessonId;
-                foreach (var item in q.Questions)
-                {
-                    questiondto questiondto = new questiondto();
-                    questiondto.id = item.id;
-                    questiondto.mark = item.mark;
-                    questiondto.Content = item.Content;
+            var found = await Repo.FindAsync(
+                q => q.Id == quizDto.Id,
+                include: q => q.Include(x => x.Questions).ThenInclude(x => x.Options),
+                asNoTracking: false,
+                cancellationToken: cancellationToken);
+            if (found is null)
+                return Result.Failure(Error.NotFound("Quiz.NotFound", $"No quiz with id {quizDto.Id}."));
 
-                    foreach (var itemm in item.Options)
-                    {
-                        optiondto optiondto = new optiondto();
-                        optiondto.id = itemm.id;
-                        optiondto.Name = itemm.Name;
-                        optiondto.IsCorrect = itemm.IsCorrect;
-                        questiondto.Options.Add(optiondto);
+            found.AssignedBefore = quizDto.AssignedBefore;
+            found.Description = quizDto.Description;
+            found.TotalMarks = quizDto.TotalMarks;
+            found.LessonId = quizDto.LessonId;
 
-                    }
-                    quizdto.Questions.Add(questiondto);
-
-                }
-                return quizdto;
-            }
-            return null;
-        }
-
-        public int updatequiz(quizdto quizdto)
-        {
-            if (quizdto == null) return 0;
-
-            var found = db.Quizzes
-                .Include(q => q.Questions)
-                .ThenInclude(q => q.Options)
-                .FirstOrDefault(q => q.Id == quizdto.Id);
-
-            if (found == null) return -1;
-
-            found.AssignedBefore = quizdto.AssignedBefore;
-            found.Description = quizdto.Description;
-            found.TotalMarks = quizdto.TotalMarks;
-            Console.WriteLine($"LessonId from DTO: {quizdto.LessonId}");
-
-            found.LessonId = quizdto.LessonId;
+            var optionRepository = unitOfWork.Repository<Option>();
+            var questionRepository = unitOfWork.Repository<Question>();
 
             foreach (var item in found.Questions.ToList())
             {
-                var check = quizdto.Questions.FirstOrDefault(q => q.id == item.id);
+                var check = quizDto.Questions?.FirstOrDefault(q => q.id == item.id);
                 if (check != null)
                 {
                     item.mark = check.mark;
                     item.Content = check.Content;
 
-                    foreach (var itemm in item.Options.ToList())
+                    foreach (var itemm in item.Options!.ToList())
                     {
                         var checkoption = check.Options.FirstOrDefault(q => q.id == itemm.id);
                         if (checkoption != null)
@@ -162,13 +95,13 @@ namespace Service.Services.Contract
                         }
                         else
                         {
-                            db.Options.Remove(itemm);
+                            optionRepository.Remove(itemm);
                         }
                     }
 
                     foreach (var newOpt in check.Options.Where(o => o.id == 0))
                     {
-                        item.Options.Add(new option
+                        item.Options!.Add(new Option
                         {
                             Name = newOpt.Name,
                             IsCorrect = newOpt.IsCorrect
@@ -177,17 +110,17 @@ namespace Service.Services.Contract
                 }
                 else
                 {
-                    db.Questions.Remove(item);
+                    questionRepository.Remove(item);
                 }
             }
 
-            foreach (var newQuestion in quizdto.Questions.Where(q => q.id == 0))
+            foreach (var newQuestion in quizDto.Questions?.Where(q => q.id == 0) ?? Enumerable.Empty<QuestionDto>())
             {
-                var question = new question
+                var question = new Question
                 {
                     Content = newQuestion.Content,
                     mark = newQuestion.mark,
-                    Options = newQuestion.Options.Select(opt => new option
+                    Options = newQuestion.Options.Select(opt => new Option
                     {
                         Name = opt.Name,
                         IsCorrect = opt.IsCorrect
@@ -197,67 +130,56 @@ namespace Service.Services.Contract
                 found.Questions.Add(question);
             }
 
-            db.Quizzes.Update(found);
-            db.SaveChanges();
-
-            return 1;
+            Repo.Update(found);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
-
-        public int deletequiz(int id)
+        public async Task<Result> DeleteQuizAsync(int id, CancellationToken cancellationToken = default)
         {
-            var found = db.Quizzes
-                .Include(q => q.Questions)
-                .ThenInclude(q => q.Options)
-                .FirstOrDefault(q => q.Id == id);
+            var found = await Repo.FindAsync(
+                q => q.Id == id,
+                include: q => q.Include(x => x.Questions).ThenInclude(x => x.Options),
+                asNoTracking: false,
+                cancellationToken: cancellationToken);
+            if (found is null)
+                return Result.Failure(Error.NotFound("Quiz.NotFound", $"No quiz with id {id}."));
 
-            if (found == null) return 0;
-
-            db.Quizzes.Remove(found);
-            db.SaveChanges();
-            return 1;
+            Repo.Remove(found);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
 
-
-        public quizdto GetQuizByLessonId(int lessonId)
+        public async Task<Result<QuizDto>> GetQuizByLessonIdAsync(int lessonId, CancellationToken cancellationToken = default)
         {
-            var q = db.Quizzes
-                .Include(q => q.Questions)
-                .ThenInclude(q => q.Options)
-                .FirstOrDefault(q => q.LessonId == lessonId);
+            var quiz = await Repo.FindAsync(
+                q => q.LessonId == lessonId,
+                include: q => q.Include(x => x.Questions).ThenInclude(x => x.Options),
+                cancellationToken: cancellationToken);
+            return quiz is null
+                ? Result.Failure<QuizDto>(Error.NotFound("Quiz.NotFound", $"No quiz found for lesson {lessonId}."))
+                : Result.Success(MapToDto(quiz));
+        }
 
-            if (q != null)
+        private static QuizDto MapToDto(Quiz quiz) => new()
+        {
+            Id = quiz.Id,
+            AssignedBefore = quiz.AssignedBefore,
+            Description = quiz.Description,
+            TotalMarks = quiz.TotalMarks,
+            LessonId = quiz.LessonId,
+            Questions = quiz.Questions.Select(question => new QuestionDto
             {
-                quizdto quizdto = new quizdto();
-                quizdto.Id = q.Id;
-                quizdto.AssignedBefore = q.AssignedBefore;
-                quizdto.Description = q.Description;
-                quizdto.TotalMarks = q.TotalMarks;
-                quizdto.LessonId = q.LessonId;
-
-                foreach (var item in q.Questions)
+                id = question.id,
+                mark = question.mark,
+                Content = question.Content,
+                Options = question.Options?.Select(option => new OptionDto
                 {
-                    questiondto questiondto = new questiondto();
-                    questiondto.id = item.id;
-                    questiondto.mark = item.mark;
-                    questiondto.Content = item.Content;
-
-                    foreach (var opt in item.Options)
-                    {
-                        optiondto optiondto = new optiondto();
-                        optiondto.id = opt.id;
-                        optiondto.Name = opt.Name;
-                        optiondto.IsCorrect = opt.IsCorrect;
-                        questiondto.Options.Add(optiondto);
-                    }
-
-                    quizdto.Questions.Add(questiondto);
-                }
-
-                return quizdto;
-            }
-
-            return null;
-        }
+                    id = option.id,
+                    Name = option.Name,
+                    IsCorrect = option.IsCorrect
+                }).ToList() ?? new List<OptionDto>()
+            }).ToList()
+        };
     }
 }

@@ -28,7 +28,7 @@ public class Lesson
 
     public DateTime? AssigmentDeadLine { get; set; }
 
-    public virtual quiz? Quiz { get; set; }
+    public virtual Quiz? Quiz { get; set; }
 
 
 }

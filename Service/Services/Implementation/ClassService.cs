@@ -1,19 +1,23 @@
 using Domain.Common;
 using Domain.Models;
-using Repository.Contract;
 using Repository.Generic;
 using Service.Services.Contract;
 
 namespace Service.Services.Implementation;
 
-public class ClassService(IClassRepository repo, IUnitOfWork unitOfWork) : IClassService
+public class ClassService(IUnitOfWork unitOfWork) : IClassService
 {
+    private IGenericRepository<Class> Repo => unitOfWork.Repository<Class>();
+
     public Task<IReadOnlyList<Class>> GetAllClassesAsync(CancellationToken cancellationToken = default) =>
-        repo.GetAllAsync(cancellationToken);
+        Repo.GetAllAsync(cancellationToken);
+
+    public Task<PaginatedList<Class>> GetPageOfClassesAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default) =>
+        Repo.GetPaginatedListAsync(requestFilters, orderBy: q => q.OrderBy(c => c.ClassID), cancellationToken: cancellationToken);
 
     public async Task<Result<Class>> GetClassByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var @class = await repo.GetByIdAsync(id, cancellationToken);
+        var @class = await Repo.GetByIdAsync(id, cancellationToken);
         return @class is null
             ? Result.Failure<Class>(Error.NotFound("Class.NotFound", $"Class with id {id} was not found."))
             : Result.Success(@class);
@@ -21,7 +25,7 @@ public class ClassService(IClassRepository repo, IUnitOfWork unitOfWork) : IClas
 
     public async Task<Result<Class>> GetClassByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        var @class = await repo.GetByNameAsync(name, cancellationToken);
+        var @class = await Repo.FindAsync(c => c.ClassName == name, cancellationToken: cancellationToken);
         return @class is null
             ? Result.Failure<Class>(Error.NotFound("Class.NotFound", $"Class named '{name}' was not found."))
             : Result.Success(@class);
@@ -29,30 +33,30 @@ public class ClassService(IClassRepository repo, IUnitOfWork unitOfWork) : IClas
 
     public async Task<Result<Class>> AddClassAsync(Class addedClass, CancellationToken cancellationToken = default)
     {
-        await repo.AddAsync(addedClass, cancellationToken);
+        await Repo.AddAsync(addedClass, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success(addedClass);
     }
 
     public async Task<Result> RemoveClassByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var @class = await repo.GetByIdAsync(id, cancellationToken);
+        var @class = await Repo.GetByIdAsync(id, cancellationToken);
         if (@class is null)
             return Result.Failure(Error.NotFound("Class.NotFound", $"Class with id {id} was not found."));
 
-        repo.Remove(@class);
+        Repo.Remove(@class);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
     public async Task<Result> UpdateClassByIdAsync(int id, Class updatedClass, CancellationToken cancellationToken = default)
     {
-        var @class = await repo.GetByIdAsync(id, cancellationToken);
+        var @class = await Repo.GetByIdAsync(id, cancellationToken);
         if (@class is null)
             return Result.Failure(Error.NotFound("Class.NotFound", $"Class with id {id} was not found."));
 
         @class.ClassName = updatedClass.ClassName;
-        repo.Update(@class);
+        Repo.Update(@class);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }

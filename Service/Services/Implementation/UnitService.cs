@@ -1,14 +1,16 @@
 using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
-using Repository.Contract;
+using Microsoft.EntityFrameworkCore;
 using Repository.Generic;
 using Service.Services.Contract;
 
 namespace Service.Services.Implementation
 {
-    public class UnitService(IUnitRepository unitRepository, ILessonRepository lessonRepository, IUnitOfWork unitOfWork) : IUnitService
+    public class UnitService(IUnitOfWork unitOfWork) : IUnitService
     {
+        private IGenericRepository<Unit> Repo => unitOfWork.Repository<Unit>();
+
         public async Task AddAsync(UnitCreateDto unitCreateDto, CancellationToken cancellationToken = default)
         {
             Unit unit = new Unit
@@ -18,19 +20,23 @@ namespace Service.Services.Implementation
                 Description = unitCreateDto.Description,
                 SubjectId = unitCreateDto.SubjectId,
             };
-            await unitRepository.AddAsync(unit, cancellationToken);
+            await Repo.AddAsync(unit, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<IEnumerable<UnitDto>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            var units = await unitRepository.GetAllWithSubjectAsync(cancellationToken);
+            var units = await Repo.FindAllAsync(include: q => q.Include(u => u.Subject), cancellationToken: cancellationToken);
             return units.Select(MapToDto).ToList();
         }
 
         public async Task<Result<UnitWithSubjectAndLessonsDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var unit = await unitRepository.GetWithDetailsAsync(id, cancellationToken);
+            var unit = await Repo.FindAsync(
+                u => u.Id == id,
+                include: q => q.Include(u => u.Subject).Include(u => u.Lessons),
+                cancellationToken: cancellationToken);
+
             return unit is null
                 ? Result.Failure<UnitWithSubjectAndLessonsDto>(Error.NotFound("Unit.NotFound", $"Unit with id {id} not found"))
                 : Result.Success(MapToDtoAll(unit));
@@ -38,46 +44,50 @@ namespace Service.Services.Implementation
 
         public async Task<Result> Delete(int id, CancellationToken cancellationToken = default)
         {
-            var unit = await unitRepository.GetByIdAsync(id, cancellationToken);
+            var unit = await Repo.GetByIdAsync(id, cancellationToken);
             if (unit is null)
                 return Result.Failure(Error.NotFound("Unit.NotFound", $"Unit with id {id} not found"));
 
-            unitRepository.Remove(unit);
+            Repo.Remove(unit);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result> Update(UnitCreateDto unitDto, int id, CancellationToken cancellationToken = default)
         {
-            var unit = await unitRepository.GetByIdAsync(id, cancellationToken);
+            var unit = await Repo.GetByIdAsync(id, cancellationToken);
             if (unit is null)
                 return Result.Failure(Error.NotFound("Unit.NotFound", $"Unit with id {id} not found"));
 
             unit.Title = unitDto.Title;
             unit.Description = unitDto.Description;
             unit.SubjectId = unitDto.SubjectId;
-            unitRepository.Update(unit);
+            Repo.Update(unit);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result<UnitWithSubjectAndLessonsDto>> GetUnitByLessonId(int lessonId, CancellationToken cancellationToken = default)
         {
-            var lesson = await lessonRepository.GetWithUnitAsync(lessonId, cancellationToken);
+            var lesson = await unitOfWork.Repository<Lesson>().FindAsync(
+                l => l.Id == lessonId,
+                include: q => q.Include(l => l.Unit),
+                cancellationToken: cancellationToken);
+
             if (lesson?.Unit is null)
                 return Result.Failure<UnitWithSubjectAndLessonsDto>(Error.NotFound("Unit.NotFound", $"No unit found for lesson ID {lessonId}"));
 
             return Result.Success(MapToDtoAll(lesson.Unit));
         }
 
-        public Task<List<Unit>> GetUnitsBySubjectId(int subjectId, CancellationToken cancellationToken = default) =>
-            unitRepository.GetUnitsBySubjectIdAsync(subjectId, cancellationToken);
+        public async Task<List<Unit>> GetUnitsBySubjectId(int subjectId, CancellationToken cancellationToken = default) =>
+            (await Repo.FindAllAsync(u => u.SubjectId == subjectId, cancellationToken: cancellationToken)).ToList();
 
-        public Task<List<Unit>> GetUnitsBySubjectName(string subjectname, CancellationToken cancellationToken = default) =>
-            unitRepository.GetUnitsBySubjectNameAsync(subjectname, cancellationToken);
+        public async Task<List<Unit>> GetUnitsBySubjectName(string subjectname, CancellationToken cancellationToken = default) =>
+            (await Repo.FindAllAsync(u => u.Subject.SubjectName == subjectname, cancellationToken: cancellationToken)).ToList();
 
         public Task<int> GetNumberOfUnitsBySubjectId(int subjectId, CancellationToken cancellationToken = default) =>
-            unitRepository.GetUnitsCountBySubjectIdAsync(subjectId, cancellationToken);
+            Repo.CountAsync(u => u.SubjectId == subjectId, cancellationToken);
 
         private static UnitDto MapToDto(Unit unit)
         {

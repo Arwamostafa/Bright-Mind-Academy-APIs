@@ -7,6 +7,8 @@ public interface ITrackService
 {
     Task<IReadOnlyList<Track>> GetAllTracksAsync(CancellationToken cancellationToken = default);
 
+    Task<PaginatedList<Track>> GetPageOfTracksAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default);
+
     Task<Result<Track>> GetTrackByIdAsync(int id, CancellationToken cancellationToken = default);
 
     Task<Result<Track>> GetTrackByNameAsync(string name, CancellationToken cancellationToken = default);

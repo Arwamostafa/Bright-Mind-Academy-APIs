@@ -1,11 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Repository;
 using Domain.DTO;
 using Domain.Models;
 using Microsoft.AspNetCore.Authorization;
+using Repository.Generic;
 
 
 namespace E_LearningPlatform.Controllers
@@ -16,17 +15,17 @@ namespace E_LearningPlatform.Controllers
     public class AdminController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> userManager;
-        private readonly AppDbContext context;
+        private readonly IUnitOfWork unitOfWork;
 
-        public AdminController(UserManager<ApplicationUser> _userManager, AppDbContext _context)
+        public AdminController(UserManager<ApplicationUser> _userManager, IUnitOfWork unitOfWork)
         {
             this.userManager = _userManager;
-            this.context = _context;
+            this.unitOfWork = unitOfWork;
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPost("addingAdmin")]
-        public async Task<IActionResult> AddAdmin([FromBody] AdminAddingDTO adminAddingDTO)
+        public async Task<IActionResult> AddAdmin([FromBody] AdminAddingDTO adminAddingDTO, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(adminAddingDTO.Password))
             {
@@ -69,8 +68,8 @@ namespace E_LearningPlatform.Controllers
                     admin.UserId = user.Id;
                     admin.NationalId = adminAddingDTO.NationalId;
 
-                    context.Add(admin);
-                    context.SaveChanges();
+                    await unitOfWork.Repository<AdminProfile>().AddAsync(admin, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
 
                     await userManager.AddToRoleAsync(user, "Admin");
 
@@ -170,7 +169,7 @@ namespace E_LearningPlatform.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateAdmin(int id, [FromBody] AdminAddingDTO adminAddingDTO)
+        public async Task<IActionResult> UpdateAdmin(int id, [FromBody] AdminAddingDTO adminAddingDTO, CancellationToken cancellationToken)
         {
 
             var user = await userManager.Users.Include(u => u.AdminProfile)
@@ -220,30 +219,30 @@ namespace E_LearningPlatform.Controllers
                 user.AdminProfile.NationalId = adminAddingDTO.NationalId;
             }
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok(new { message = "Admin Updated successfully" });
         }
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteAdmin(int id)
+        public async Task<IActionResult> DeleteAdmin(int id, CancellationToken cancellationToken)
         {
             var user = await userManager.Users.Include(u => u.AdminProfile)
-                                 .FirstOrDefaultAsync(u => u.Id == id);
+                                 .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
             if (user == null)
                 return NotFound("Admin Not Found");
 
             if (user.AdminProfile != null)
-                context.AdminProfiles.Remove(user.AdminProfile);
+                unitOfWork.Repository<AdminProfile>().Remove(user.AdminProfile);
 
             var result = await userManager.DeleteAsync(user);
 
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok("Admin is deleted Successfully");
         }
