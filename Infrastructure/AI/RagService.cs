@@ -1,18 +1,16 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Driver;
-using API.Services;
 using System.Linq;
 
-namespace API.Services
+namespace Infrastructure.AI
 {
     public class RagService
     {
         private readonly IMongoClient mongoClient;
         private readonly Fireworksembeddinggenerator firework;
         private readonly FireWorkAiChat fireworkchatai;
-        private readonly IMongoCollection<BsonDocument> collection;
-        //private readonly FireworksChatService
-        public RagService(IMongoClient _mongoClient,    FireWorkAiChat fireworkchatai, Fireworksembeddinggenerator _firework)
+
+        public RagService(IMongoClient _mongoClient, FireWorkAiChat fireworkchatai, Fireworksembeddinggenerator _firework)
         {
             mongoClient = _mongoClient;
             firework = _firework;
@@ -76,49 +74,3 @@ namespace API.Services
         }
     }
 }
-///////////////////
-/////using MongoDB.Bson;
-//using MongoDB.Driver;
-//using static System.Formats.Asn1.AsnWriter;
-
-//namespace Ai5.Services
-//{
-//    public class RagService
-//    {
-//        private readonly IMongoClient mongoClient;
-//        private readonly Fireworksembeddinggenerator firework;
-//        public RagService(IMongoClient _mongoClien, Fireworksembeddinggenerator _firework)
-//        {
-
-//            mongoClient = _mongoClien;
-//            firework = _firework;
-
-//        }
-
-//        public async void AskAiWithRag(string prompt)
-//        {
-//            var emdeddingresponse=await firework.GenerateEmbeddingsAsync([prompt]);
-//            var userEmbedding = emdeddingresponse[0].Data[0].Embedding;
-//            var collection = mongoClient.GetDatabase("RagDataSet").GetCollection<BsonDocument>("Embeddings");
-//            var ragdata=collection.FindAsync(new BsonDocument()).Result.ToList();
-//            var scoredChunks=ragdata.Select(doc =>
-//            {
-//                var Text = doc["text"].AsString;
-//                var Embedding = doc["embedding"].AsBsonArray
-//                 .Select(x => x.AsDouble).ToArray()})
-//                .select(x => new
-//                { x.Text,score = CalculateCosineSimilarity(promptEmbedding.Data[0].Embedding.toarray(), x.Embedding);
-
-//        }).OrderByDescending(x => x.Score).Take(5).select(x=>x.text).ToArray();
-//    })
-//                }
-
-
-//        }
-
-//        private object CalculateCosineSimilarity(float[] floats, object embedding)
-//        {
-//            throw new NotImplementedException();
-//}
-//    }
-//}

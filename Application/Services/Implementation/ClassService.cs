@@ -1,16 +1,19 @@
 using Domain.Common;
 using Domain.Models;
+using Application.Caching;
 using Application.Repositories;
 using Application.Services.Contract;
 
 namespace Application.Services.Implementation;
 
-public class ClassService(IUnitOfWork unitOfWork) : IClassService
+public class ClassService(IUnitOfWork unitOfWork, ICacheService cache) : IClassService
 {
+    private const string AllClassesCacheKey = "classes:all";
+
     private IGenericRepository<Class> Repo => unitOfWork.Repository<Class>();
 
     public Task<IReadOnlyList<Class>> GetAllClassesAsync(CancellationToken cancellationToken = default) =>
-        Repo.GetAllAsync(cancellationToken);
+        cache.GetOrCreateAsync(AllClassesCacheKey, Repo.GetAllAsync, cancellationToken: cancellationToken);
 
     public Task<PaginatedList<Class>> GetPageOfClassesAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default) =>
         Repo.GetPaginatedListAsync(requestFilters, orderBy: q => q.OrderBy(c => c.ClassID), cancellationToken: cancellationToken);
@@ -35,6 +38,7 @@ public class ClassService(IUnitOfWork unitOfWork) : IClassService
     {
         await Repo.AddAsync(addedClass, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllClassesCacheKey, cancellationToken);
         return Result.Success(addedClass);
     }
 
@@ -46,6 +50,7 @@ public class ClassService(IUnitOfWork unitOfWork) : IClassService
 
         Repo.Remove(@class);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllClassesCacheKey, cancellationToken);
         return Result.Success();
     }
 
@@ -58,6 +63,7 @@ public class ClassService(IUnitOfWork unitOfWork) : IClassService
         @class.ClassName = updatedClass.ClassName;
         Repo.Update(@class);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllClassesCacheKey, cancellationToken);
         return Result.Success();
     }
 }

@@ -5,7 +5,7 @@ using Domain.Models;
 using Domain.Options;
 using API.Hubs;
 using API.Middleware;
-using API.Services;
+using Infrastructure.AI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +14,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Infrastructure;
+using Infrastructure.Caching;
 using Infrastructure.Repositories;
+using Application.Caching;
 using Application.Repositories;
 using Application.Services.Contract;
 using Application.Services.Implementation;
@@ -94,9 +96,25 @@ namespace API
             builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            //  Redis cache
+            builder.Services.AddOptions<RedisOptions>()
+                .Bind(builder.Configuration.GetSection(RedisOptions.SectionName))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                var redisOptions = builder.Configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>()
+                    ?? throw new InvalidOperationException("Redis configuration section is missing.");
+                options.Configuration = redisOptions.ConnectionString;
+                options.InstanceName = redisOptions.InstanceName;
+            });
+            builder.Services.AddScoped<ICacheService, RedisCacheService>();
+
             builder.Services.AddScoped<IClassService, ClassService>();
             builder.Services.AddScoped<ITrackService, TrackService>();
             builder.Services.AddScoped<ISubjectService, SubjectService>();
+            builder.Services.AddScoped<ISubjectQueryService, SubjectQueryService>();
             builder.Services.AddScoped<IUnitService, UnitService>();
             builder.Services.AddScoped<ILessonService, LessonService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();

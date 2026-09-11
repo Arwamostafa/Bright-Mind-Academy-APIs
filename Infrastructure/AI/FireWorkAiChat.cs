@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 using Domain.Options;
 using Microsoft.Extensions.Options;
 
-namespace API.Services
+namespace Infrastructure.AI
 {
     public class FireWorkAiChat
     {
