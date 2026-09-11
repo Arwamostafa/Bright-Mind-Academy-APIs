@@ -7,3 +7,6 @@ obj/
 # User-uploaded content - runtime data, not source
 **/wwwroot/Uploads/
 
+# Serilog file sink output - runtime data, not source
+**/logs/
+

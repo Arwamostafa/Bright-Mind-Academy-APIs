@@ -18,6 +18,7 @@ using Infrastructure.Repositories;
 using Application.Repositories;
 using Application.Services.Contract;
 using Application.Services.Implementation;
+using Serilog;
 
 namespace API
 {
@@ -25,7 +26,36 @@ namespace API
     {
         public static void Main(string[] args)
         {
+            // Bootstrap logger: catches anything that goes wrong before the full
+            // Serilog pipeline (which needs configuration/services) is wired up below.
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .CreateBootstrapLogger();
+
+            try
+            {
+                RunApp(args);
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Application terminated unexpectedly");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+        }
+
+        private static void RunApp(string[] args)
+        {
             var builder = WebApplication.CreateBuilder(args);
+
+            builder.Host.UseSerilog((context, services, configuration) => configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day));
 
             // Add services to the container.
 
@@ -180,6 +210,8 @@ namespace API
             #endregion
 
             var app = builder.Build();
+
+            app.UseSerilogRequestLogging();
 
             app.UseExceptionHandler();
 
