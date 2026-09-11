@@ -119,7 +119,7 @@ namespace Repository
             modelBuilder.Entity<Lesson>()
                 .HasOne(l => l.Quiz)
                 .WithOne(q => q.Lesson)
-                .HasForeignKey<quiz>(q => q.LessonId)
+                .HasForeignKey<Quiz>(q => q.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
@@ -139,9 +139,9 @@ namespace Repository
         public virtual DbSet<StudentClassSubject> StudentClassSubjects { get; set; }
         //public DbSet<Payment> Payments { get; set; }
 
-        public virtual DbSet<quiz> Quizzes { get; set; }
-        public virtual DbSet<question> Questions { get; set; }
-        public virtual DbSet<option> Options { get; set; }
+        public virtual DbSet<Quiz> Quizzes { get; set; }
+        public virtual DbSet<Question> Questions { get; set; }
+        public virtual DbSet<Option> Options { get; set; }
 
         public virtual DbSet<Unit> Units { get; set; }
 

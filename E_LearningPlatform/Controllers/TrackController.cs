@@ -1,3 +1,4 @@
+using Domain.Common;
 using Domain.Models;
 using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +23,14 @@ namespace E_LearningPlatform.Controllers
         public async Task<IActionResult> GetAllTracks(CancellationToken cancellationToken)
         {
             var response = await newTrack.GetAllTracksAsync(cancellationToken);
+            return Ok(response);
+        }
+
+        [HttpGet("page")]
+        //[Authorize(Roles = ("Instructor, Admin"))]
+        public async Task<IActionResult> GetPageOfTracks([FromQuery] RequestFilters requestFilters, CancellationToken cancellationToken)
+        {
+            var response = await newTrack.GetPageOfTracksAsync(requestFilters, cancellationToken);
             return Ok(response);
         }
 

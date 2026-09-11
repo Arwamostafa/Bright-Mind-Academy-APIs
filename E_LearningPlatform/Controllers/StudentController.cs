@@ -1,12 +1,10 @@
-﻿using Domain.DTO;
+using Domain.Common;
+using Domain.DTO;
 using Domain.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Repository;
-using Service.Services.Contract;
+using Repository.Generic;
 namespace E_LearningPlatform.Controllers
 {
     [Route("api/[controller]")]
@@ -15,16 +13,16 @@ namespace E_LearningPlatform.Controllers
     {
 
         private readonly UserManager<ApplicationUser> userManager;
-        private readonly AppDbContext context;
+        private readonly IUnitOfWork unitOfWork;
 
-        public StudentController(UserManager<ApplicationUser> _userManager, AppDbContext _context)
+        public StudentController(UserManager<ApplicationUser> _userManager, IUnitOfWork unitOfWork)
         {
             this.userManager = _userManager;
-            this.context = _context;
+            this.unitOfWork = unitOfWork;
         }
 
         [HttpPost("studentRegister")]
-        public async Task<IActionResult> Register([FromBody] StudentRegisterDTO studentRegisterDTO)
+        public async Task<IActionResult> Register([FromBody] StudentRegisterDTO studentRegisterDTO, CancellationToken cancellationToken)
         {
             if (ModelState.IsValid)
             {
@@ -38,23 +36,17 @@ namespace E_LearningPlatform.Controllers
                 user.Gender = studentRegisterDTO.Gender;
                 user.UserName = studentRegisterDTO.FirstName + studentRegisterDTO.LastName;
 
-                //var r = userManager.GetRolesAsync(user)
-                //    userManager.UpdateAsync(user);
-
                 IdentityResult result = await userManager.CreateAsync(user, studentRegisterDTO.Password);
-
-
 
                 if (result.Succeeded)
                 {
                     StudentProfile student = new StudentProfile();
 
-
                     student.UserId = user.Id;
                     student.Age = studentRegisterDTO.Age;
 
-                    context.Add(student);
-                    context.SaveChanges();
+                    await unitOfWork.Repository<StudentProfile>().AddAsync(student, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
 
                     await userManager.AddToRoleAsync(user, "Student");
 
@@ -97,6 +89,31 @@ namespace E_LearningPlatform.Controllers
             }
 
             return Ok(studentRegisterDTOs);
+        }
+
+        [HttpGet("page")]
+        public async Task<IActionResult> GetPageOfStudents([FromQuery] RequestFilters requestFilters, CancellationToken cancellationToken)
+        {
+            var page = await unitOfWork.Repository<ApplicationUser>().GetPaginatedListAsync(
+                requestFilters,
+                include: q => q.Include(u => u.StudentProfile),
+                predicate: u => u.StudentProfile != null,
+                orderBy: q => q.OrderBy(u => u.Id),
+                cancellationToken: cancellationToken);
+
+            var items = page.Items.Select(user => new StudentRegisterDTO
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Address = user.Address,
+                PhoneNumber = user.PhoneNumber,
+                Email = user.Email,
+                Gender = user.Gender,
+                Age = user.StudentProfile!.Age,
+            }).ToList();
+
+            return Ok(new PaginatedList<StudentRegisterDTO>(items, page.PageNumber, page.TotalCount, page.PageSize));
         }
 
         [HttpGet("id/{id:int}")]
@@ -143,15 +160,14 @@ namespace E_LearningPlatform.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateStudent(int id, [FromBody] StudentRegisterDTO studentRegisterDTO)
+        public async Task<IActionResult> UpdateStudent(int id, [FromBody] StudentRegisterDTO studentRegisterDTO, CancellationToken cancellationToken)
         {
 
             var user = await userManager.Users.Include(u => u.StudentProfile)
-                .SingleOrDefaultAsync(u => u.Id == id);
+                .SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
 
             if (user == null)
             {
-                //await userManager.UpdateAsync(studentRegisterDTO);
                 return NotFound("Student Not Found");
             }
 
@@ -175,7 +191,7 @@ namespace E_LearningPlatform.Controllers
                 user.StudentProfile.Age = studentRegisterDTO.Age;
             }
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok("Student Updated Successfully");
 
@@ -183,110 +199,34 @@ namespace E_LearningPlatform.Controllers
         }
 
         [HttpDelete("delete/{id:int}")]
-        public async Task<IActionResult> DeleteStudent(int id)
+        public async Task<IActionResult> DeleteStudent(int id, CancellationToken cancellationToken)
         {
             var user = await userManager.Users.Include(u => u.StudentProfile)
-                                  .FirstOrDefaultAsync(u => u.Id == id);
+                                  .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
             if (user == null)
                 return NotFound("Student Not Found");
 
             if (user.StudentProfile != null)
-                context.StudentProfiles.Remove(user.StudentProfile);
+                unitOfWork.Repository<StudentProfile>().Remove(user.StudentProfile);
 
             var result = await userManager.DeleteAsync(user);
 
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok("Student is deleted Successfully");
         }
 
 
         [HttpGet("count")]
-        public async Task<IActionResult> GetStudentCount()
+        public async Task<IActionResult> GetStudentCount(CancellationToken cancellationToken)
         {
             var count = await userManager.Users.Include(u => u.StudentProfile)
-                                .CountAsync(u => u.StudentProfile != null);
+                                .CountAsync(u => u.StudentProfile != null, cancellationToken);
             return Ok(count);
         }
-
-        //private readonly IStudentService _service;
-
-        //public StudentController(IStudentService service)
-        //{
-        //    _service = service;
-        //}
-
-        //[HttpGet("GetAll")]
-        //public async Task<ActionResult<IEnumerable<Student>>> GetAll()
-        //{
-        //    return Ok(await _service.GetAllAsync());
-        //}
-
-        //[HttpGet("GetById/{id}")]
-        //public async Task<ActionResult<Student>> GetById(int id)
-        //{
-        //    var student = await _service.GetByIdAsync(id);
-        //    if (student == null)
-        //        return NotFound();
-
-        //    return Ok(student);
-        //}
-
-        //[HttpPost("Create")]
-        //public async Task<ActionResult> Create([FromBody] Student student)
-        //{
-        //    await _service.AddAsync(student);
-        //    return Ok();
-        //}
-
-        //[HttpPut("Update/{id}")]
-        //public async Task<ActionResult> Update(int id, [FromBody] Student student)
-        //{
-        //    if (id != student.StudentID)
-        //        return BadRequest();
-
-        //    await _service.UpdateAsync(student);
-        //    return NoContent();
-        //}
-
-        //[HttpDelete("Delete/{id}")]
-        //public async Task<ActionResult> Delete(int id)
-        //{
-        //    await _service.DeleteAsync(id);
-        //    return NoContent();
-        //}
-
-        //[HttpPost("enroll")]
-        //public async Task<IActionResult> EnrollStudent([FromForm] int studentId, [FromForm] int subjectId)
-        //{
-        //    try
-        //    {
-        //        await _service.EnrollStudentInSubjectAsync(studentId, subjectId);
-        //        return Ok("Student enrolled successfully.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest($"Error: {ex.Message}");
-        //    }
-        //}
-        //[HttpGet("payment")]
-        //public async Task<IActionResult> GetPaymentBySubjectAndStudent(int subjectId, int studentId)
-        //{
-        //    try
-        //    {
-        //        var payment = await _service.GetPaymentBySubjectAndStudent(subjectId, studentId);
-        //        if (payment == null)
-        //            return NotFound("Payment not found.");
-        //        return Ok(payment);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest($"Error: {ex.Message}");
-        //    }
-        //}
     }
 }

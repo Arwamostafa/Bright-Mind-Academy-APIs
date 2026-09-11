@@ -2,18 +2,20 @@ using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
 using Microsoft.AspNetCore.Http;
-using Repository.Contract;
+using Microsoft.EntityFrameworkCore;
 using Repository.Generic;
 using Service.Services.Contract;
 using System.IO.Compression;
 
 namespace Service.Services.Implementation
 {
-    public class LessonService(ILessonRepository lessonRepository, IUnitOfWork unitOfWork) : ILessonService
+    public class LessonService(IUnitOfWork unitOfWork) : ILessonService
     {
+        private IGenericRepository<Lesson> Repo => unitOfWork.Repository<Lesson>();
+
         public async Task<IEnumerable<LessonDto>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            var lessons = await lessonRepository.GetAllWithUnitAsync(cancellationToken);
+            var lessons = await Repo.FindAllAsync(include: q => q.Include(l => l.Unit), cancellationToken: cancellationToken);
             return lessons.Select(MapToLessonDto).ToList();
         }
 
@@ -99,24 +101,24 @@ namespace Service.Services.Implementation
                 AssigmentUrl = assignmentUrls.FirstOrDefault(),
                 PdfUrl = pdfUrls.FirstOrDefault(),
             };
-            await lessonRepository.AddAsync(lesson, cancellationToken);
+            await Repo.AddAsync(lesson, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<Result> Delete(int id, CancellationToken cancellationToken = default)
         {
-            var lesson = await lessonRepository.GetByIdAsync(id, cancellationToken);
+            var lesson = await Repo.GetByIdAsync(id, cancellationToken);
             if (lesson == null)
                 return Result.Failure(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"));
 
-            lessonRepository.Remove(lesson);
+            Repo.Remove(lesson);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result<LessonDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var lesson = await lessonRepository.GetWithUnitAsync(id, cancellationToken);
+            var lesson = await Repo.FindAsync(l => l.Id == id, include: q => q.Include(l => l.Unit), cancellationToken: cancellationToken);
             return lesson is null
                 ? Result.Failure<LessonDto>(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"))
                 : Result.Success(MapToLessonDto(lesson));
@@ -124,7 +126,7 @@ namespace Service.Services.Implementation
 
         public async Task<Result> Update(LessonCreateDto lessonCreateDto, int id, CancellationToken cancellationToken = default)
         {
-            var lesson = await lessonRepository.GetByIdAsync(id, cancellationToken);
+            var lesson = await Repo.GetByIdAsync(id, cancellationToken);
             if (lesson == null)
                 return Result.Failure(Error.NotFound("Lesson.NotFound", $"Lesson with id {id} not found"));
 
@@ -156,20 +158,20 @@ namespace Service.Services.Implementation
             lesson.VideoUrl = videoUrls.FirstOrDefault();
             lesson.UnitId = lessonCreateDto.UnitId;
 
-            lessonRepository.Update(lesson);
+            Repo.Update(lesson);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<IEnumerable<LessonDto>> GetLessonsByUnitId(int unitId, CancellationToken cancellationToken = default)
         {
-            var lessons = await lessonRepository.GetLessonsByUnitIdAsync(unitId, cancellationToken);
+            var lessons = await Repo.FindAllAsync(l => l.UnitId == unitId, include: q => q.Include(l => l.Unit), cancellationToken: cancellationToken);
             return lessons.Select(MapToLessonDto).ToList();
         }
 
         public async Task<IEnumerable<LessonDto>> GetLessonsByUnitName(string unitname, CancellationToken cancellationToken = default)
         {
-            var lessons = await lessonRepository.GetLessonsByUnitNameAsync(unitname, cancellationToken);
+            var lessons = await Repo.FindAllAsync(l => l.Unit.Title == unitname, include: q => q.Include(l => l.Unit), cancellationToken: cancellationToken);
             return lessons.Select(MapToLessonDto).ToList();
         }
 

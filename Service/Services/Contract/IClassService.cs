@@ -7,6 +7,8 @@ public interface IClassService
 {
     Task<IReadOnlyList<Class>> GetAllClassesAsync(CancellationToken cancellationToken = default);
 
+    Task<PaginatedList<Class>> GetPageOfClassesAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default);
+
     Task<Result<Class>> GetClassByIdAsync(int id, CancellationToken cancellationToken = default);
 
     Task<Result<Class>> GetClassByNameAsync(string name, CancellationToken cancellationToken = default);

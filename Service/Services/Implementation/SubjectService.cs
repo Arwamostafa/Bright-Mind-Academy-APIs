@@ -2,17 +2,24 @@ using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
 using Microsoft.EntityFrameworkCore;
-using Repository.Contract;
 using Repository.Generic;
 using Service.Services.Contract;
 
 namespace Service.Services.Implementation
 {
-    public class SubjectService(ISubjectRepository repo, IPaymentRepository paymentRepository, IUnitOfWork unitOfWork) : ISubjectService
+    public class SubjectService(IUnitOfWork unitOfWork) : ISubjectService
     {
+        private IGenericRepository<Subject> Repo => unitOfWork.Repository<Subject>();
+        private IGenericRepository<StudentClassSubject> ClassSubjectRepo => unitOfWork.Repository<StudentClassSubject>();
+        private IGenericRepository<SubjectStudent> SubjectStudentRepo => unitOfWork.Repository<SubjectStudent>();
+
         public async Task<List<SubjectWithUnits>> GetAllSubjectsAsync(CancellationToken cancellationToken = default)
         {
-            var subjects = await repo.GetAllWithDetailsAsync(cancellationToken);
+            var subjects = await Repo.FindAllAsync(
+                include: q => q.Include(s => s.Instructor).ThenInclude(i => i.User)
+                               .Include(s => s.StudentClassSubject).ThenInclude(scs => scs.Class)
+                               .Include(s => s.StudentClassSubject).ThenInclude(scs => scs.Track),
+                cancellationToken: cancellationToken);
 
             return subjects.Select(subject =>
             {
@@ -37,7 +44,7 @@ namespace Service.Services.Implementation
 
         public async Task<Result<Subject>> GetSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var subject = await repo.GetByIdAsync(id, cancellationToken);
+            var subject = await Repo.GetByIdAsync(id, cancellationToken);
             return subject is null
                 ? Result.Failure<Subject>(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."))
                 : Result.Success(subject);
@@ -45,7 +52,7 @@ namespace Service.Services.Implementation
 
         public async Task<Result<Subject>> GetSubjectByNameAsync(string name, CancellationToken cancellationToken = default)
         {
-            var subject = await repo.GetByNameAsync(name, cancellationToken);
+            var subject = await Repo.FindAsync(c => c.SubjectName == name, cancellationToken: cancellationToken);
             return subject is null
                 ? Result.Failure<Subject>(Error.NotFound("Subject.NotFound", $"Subject named '{name}' was not found."))
                 : Result.Success(subject);
@@ -61,7 +68,7 @@ namespace Service.Services.Implementation
                 Price = addedSubjectDTO.Price
             };
 
-            await repo.AddAsync(subject, cancellationToken);
+            await Repo.AddAsync(subject, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             var studentClassSubject = new StudentClassSubject
@@ -72,7 +79,7 @@ namespace Service.Services.Implementation
                 TrackID = addedSubjectDTO.TrackID
             };
 
-            await unitOfWork.Repository<StudentClassSubject>().AddAsync(studentClassSubject, cancellationToken);
+            await ClassSubjectRepo.AddAsync(studentClassSubject, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             addedSubjectDTO.SubjectID = subject.SubjectID;
@@ -81,19 +88,19 @@ namespace Service.Services.Implementation
 
         public async Task<Result> RemoveSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var subject = await repo.GetByIdAsync(id, cancellationToken);
+            var subject = await Repo.GetByIdAsync(id, cancellationToken);
             if (subject is null)
                 return Result.Failure(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
 
-            repo.Remove(subject);
+            Repo.Remove(subject);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result> UpdateSubjectByIdAsync(int id, CreatedSubjectDTO updatedSubjectDTO, CancellationToken cancellationToken = default)
         {
-            var subject = await repo.GetByIdAsync(id, cancellationToken);
-            var oldClassSubject = await repo.GetStudentClassSubjectBySubjectIdAsync(id, cancellationToken);
+            var subject = await Repo.GetByIdAsync(id, cancellationToken);
+            var oldClassSubject = await ClassSubjectRepo.FindAsync(sc => sc.SubjectID == id, asNoTracking: false, cancellationToken: cancellationToken);
 
             if (subject is null || oldClassSubject is null)
                 return Result.Failure(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
@@ -102,11 +109,10 @@ namespace Service.Services.Implementation
             subject.SubjectDescription = updatedSubjectDTO.SubjectDescription;
             subject.InstructorID = updatedSubjectDTO.InstructorID;
             subject.Price = updatedSubjectDTO.Price;
-            repo.Update(subject);
+            Repo.Update(subject);
 
-            var classSubjectRepo = unitOfWork.Repository<StudentClassSubject>();
-            classSubjectRepo.Remove(oldClassSubject);
-            await classSubjectRepo.AddAsync(new StudentClassSubject
+            ClassSubjectRepo.Remove(oldClassSubject);
+            await ClassSubjectRepo.AddAsync(new StudentClassSubject
             {
                 SubjectID = id,
                 InstructorID = updatedSubjectDTO.InstructorID,
@@ -120,7 +126,23 @@ namespace Service.Services.Implementation
 
         public async Task<List<SubjectDto>> TopThreeSubjectsAsync(CancellationToken cancellationToken = default)
         {
-            var subjects = await paymentRepository.TopThreeSubjectsAsync(cancellationToken);
+            // Grouping/aggregation doesn't fit Find/FindAll - use the raw queryable escape hatch.
+            var topSubjectIds = await SubjectStudentRepo.Query()
+                .Where(ss => ss.IsPaid)
+                .GroupBy(ss => ss.SubjectId)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .Take(3)
+                .ToListAsync(cancellationToken);
+
+            var subjects = await ClassSubjectRepo.FindAllAsync(
+                predicate: s => topSubjectIds.Contains(s.SubjectID),
+                include: q => q.Include(s => s.Instructor).ThenInclude(i => i.User)
+                               .Include(s => s.Subject)
+                               .Include(s => s.Class)
+                               .Include(s => s.Track),
+                cancellationToken: cancellationToken);
+
             var unitCounts = await GetUnitCountsAsync(subjects.Select(s => s.SubjectID), cancellationToken);
 
             return subjects.Select(s => new SubjectDto
@@ -144,12 +166,14 @@ namespace Service.Services.Implementation
             if (pageNumber <= 0) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            var subjects = await repo.GetAllSubjectPaginationAsync(cancellationToken);
-            var page = subjects
-                .OrderBy(cts => cts.SubjectID)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            var page = await ClassSubjectRepo.FindAllAsync(
+                include: q => q.Include(s => s.Subject).ThenInclude(s => s.Instructor).ThenInclude(i => i.User)
+                               .Include(s => s.Class)
+                               .Include(s => s.Track),
+                orderBy: q => q.OrderBy(cts => cts.SubjectID),
+                skip: (pageNumber - 1) * pageSize,
+                take: pageSize,
+                cancellationToken: cancellationToken);
 
             var unitCounts = await GetUnitCountsAsync(page.Select(p => p.SubjectID), cancellationToken);
 
@@ -170,11 +194,17 @@ namespace Service.Services.Implementation
         }
 
         public Task<int> GetTotalSubjectsCountAsync(CancellationToken cancellationToken = default) =>
-            repo.GetTotalSubjectsCountAsync(cancellationToken);
+            Repo.CountAsync(cancellationToken: cancellationToken);
 
         public async Task<IEnumerable<StudentRegisterDTO>> GetStudentsBySubjectIdAsync(int subjectId, CancellationToken cancellationToken = default)
         {
-            var students = await repo.GetStudentsPaidBySubjectIdAsync(subjectId, cancellationToken);
+            // Projects to the related Student rather than SubjectStudent itself - doesn't fit Find/FindAll.
+            var students = await SubjectStudentRepo.Query()
+                .Where(ss => ss.SubjectId == subjectId && ss.IsPaid)
+                .Include(ss => ss.Student)
+                    .ThenInclude(s => s.User)
+                .Select(ss => ss.Student)
+                .ToListAsync(cancellationToken);
 
             return students.Select(s => new StudentRegisterDTO
             {
@@ -189,7 +219,10 @@ namespace Service.Services.Implementation
 
         public async Task<List<SubjectDto>> GetSubjectsByClassAndTrackAsync(int classId, int trackId, CancellationToken cancellationToken = default)
         {
-            var results = await repo.GetByClassAndTrackAsync(classId, trackId, cancellationToken);
+            var results = await ClassSubjectRepo.FindAllAsync(
+                predicate: c => c.ClassID == classId && c.TrackID == trackId,
+                include: q => q.Include(c => c.Subject).ThenInclude(s => s.Instructor).ThenInclude(i => i.User),
+                cancellationToken: cancellationToken);
 
             return results.Select(cts => new SubjectDto
             {
@@ -204,7 +237,11 @@ namespace Service.Services.Implementation
 
         public async Task<Result<SubjectDto>> GetHomeSubjectByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var cts = await repo.GetStudentClassSubjectBySubjectIdAsync(id, cancellationToken);
+            var cts = await ClassSubjectRepo.FindAsync(
+                c => c.SubjectID == id,
+                include: q => q.Include(c => c.Subject).ThenInclude(s => s.Instructor).ThenInclude(i => i.User),
+                cancellationToken: cancellationToken);
+
             if (cts is null)
                 return Result.Failure<SubjectDto>(Error.NotFound("Subject.NotFound", $"Subject with id {id} was not found."));
 
@@ -221,7 +258,12 @@ namespace Service.Services.Implementation
 
         public async Task<List<SubjectDto>> GetHomeSubjectsAsync(CancellationToken cancellationToken = default)
         {
-            var subjects = await repo.GetAllSubjectPaginationAsync(cancellationToken);
+            var subjects = await ClassSubjectRepo.FindAllAsync(
+                include: q => q.Include(s => s.Subject).ThenInclude(s => s.Instructor).ThenInclude(i => i.User)
+                               .Include(s => s.Class)
+                               .Include(s => s.Track),
+                cancellationToken: cancellationToken);
+
             var unitCounts = await GetUnitCountsAsync(subjects.Select(s => s.SubjectID), cancellationToken);
 
             return subjects.Select(cts => new SubjectDto
@@ -246,6 +288,7 @@ namespace Service.Services.Implementation
             if (ids.Count == 0)
                 return new Dictionary<int, int>();
 
+            // Grouping/projection to a dictionary doesn't fit Find/FindAll - use the raw queryable escape hatch.
             return await unitOfWork.Repository<Unit>().Query()
                 .Where(u => ids.Contains(u.SubjectId))
                 .GroupBy(u => u.SubjectId)

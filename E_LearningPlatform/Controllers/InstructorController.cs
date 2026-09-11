@@ -4,9 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Repository;
+using Repository.Generic;
 using Service.Services.Contract;
-using Service.Services.Implementation;
 
 namespace E_LearningPlatform.Controllers
 {
@@ -15,18 +14,18 @@ namespace E_LearningPlatform.Controllers
     public class InstructorController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> userManager;
-        private readonly AppDbContext context;
+        private readonly IUnitOfWork unitOfWork;
         private readonly ILessonService lessonService;
 
-        public InstructorController(UserManager<ApplicationUser> _userManager, AppDbContext _context, ILessonService _lessonService)
+        public InstructorController(UserManager<ApplicationUser> _userManager, IUnitOfWork unitOfWork, ILessonService _lessonService)
         {
             this.userManager = _userManager;
-            this.context = _context;
+            this.unitOfWork = unitOfWork;
             lessonService = _lessonService;
         }
 
         [HttpPost("addingInstructor")]
-        public async Task<IActionResult> AddInstructor([FromForm] InstructorAddingDTO instructorAddingDTO)
+        public async Task<IActionResult> AddInstructor([FromForm] InstructorAddingDTO instructorAddingDTO, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(instructorAddingDTO.Password))
             {
@@ -72,13 +71,13 @@ namespace E_LearningPlatform.Controllers
                     List<string> Image = new List<string>();
                     if (instructorAddingDTO.Image != null)
                     {
-                        var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Image");
+                        var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Image", cancellationToken);
                         Image.AddRange(files.Where(url => url.EndsWith(".png") || url.EndsWith(".jpg") || url.EndsWith(".jpeg")));
                     }
                     instructor.Image = Image.FirstOrDefault();
 
-                    context.Add(instructor);
-                    context.SaveChanges();
+                    await unitOfWork.Repository<InstructorProfile>().AddAsync(instructor, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
 
                     await userManager.AddToRoleAsync(user, "Instructor");
 
@@ -160,7 +159,7 @@ namespace E_LearningPlatform.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateInstructor(int id, [FromForm] InstructorAddingDTO instructorAddingDTO)
+        public async Task<IActionResult> UpdateInstructor(int id, [FromForm] InstructorAddingDTO instructorAddingDTO, CancellationToken cancellationToken)
         {
 
             var user = await userManager.Users.Include(u => u.InstructorProfile)
@@ -204,7 +203,7 @@ namespace E_LearningPlatform.Controllers
                 if (instructorAddingDTO.Image != null)
                 {
                     List<string> Image = new List<string>();
-                    var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Images");
+                    var files = await lessonService.SaveFileAsync(instructorAddingDTO.Image, "Uploads/Images", cancellationToken);
                     Image.AddRange(files.Where(url => url.EndsWith(".png") || url.EndsWith(".jpg") || url.EndsWith(".jpeg")));
 
                     var newImage = Image.FirstOrDefault();
@@ -215,7 +214,7 @@ namespace E_LearningPlatform.Controllers
                 }
             }
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok(new { message = "Instructor Updated successfully" });
 
@@ -223,33 +222,33 @@ namespace E_LearningPlatform.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteInstructor(int id)
+        public async Task<IActionResult> DeleteInstructor(int id, CancellationToken cancellationToken)
         {
             var user = await userManager.Users.Include(u => u.InstructorProfile)
-                                  .FirstOrDefaultAsync(u => u.Id == id);
+                                  .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
             if (user == null)
                 return NotFound("Instructor Not Found");
 
             if (user.InstructorProfile != null)
-                context.InstructorProfiles.Remove(user.InstructorProfile);
+                unitOfWork.Repository<InstructorProfile>().Remove(user.InstructorProfile);
 
             var result = await userManager.DeleteAsync(user);
 
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            await context.SaveChangesAsync();
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Ok("Instructor is deleted Successfully");
         }
 
 
         [HttpGet("count")]
-        public async Task<IActionResult> GetInstructorsCount()
+        public async Task<IActionResult> GetInstructorsCount(CancellationToken cancellationToken)
         {
             var count = await userManager.Users.Include(u => u.InstructorProfile)
-                .Where(u => u.InstructorProfile != null).CountAsync();
+                .Where(u => u.InstructorProfile != null).CountAsync(cancellationToken);
             return Ok(count);
         }
     }

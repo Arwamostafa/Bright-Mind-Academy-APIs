@@ -1,16 +1,13 @@
-﻿
-namespace Domain.DTO;
+namespace Domain.Models;
 
-public class quizdto
+public class Quiz
 {
     public int Id { get; set; }
     public string Description { get; set; }
     public bool AssignedBefore { get; set; }
     public int TotalMarks { get; set; }
-
+    public virtual ICollection<Question> Questions { get; set; } = new HashSet<Question>();
     public int LessonId { get; set; }
-
-   
-    public List<questiondto>? Questions { get; set; } = new List<questiondto>();
+    public virtual Lesson Lesson { get; set; }
 
 }

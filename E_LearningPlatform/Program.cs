@@ -12,9 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Repository;
-using Repository.Contract;
 using Repository.Generic;
-using Repository.Implementation;
 using Service.Services.Contract;
 using Service.Services.Implementation;
 
@@ -70,16 +68,10 @@ namespace E_LearningPlatform
             builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            builder.Services.AddScoped<IClassRepository, ClassRepository>();
             builder.Services.AddScoped<IClassService, ClassService>();
-            builder.Services.AddScoped<ITrackRepository, TrackRepository>();
             builder.Services.AddScoped<ITrackService, TrackService>();
-            builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
             builder.Services.AddScoped<ISubjectService, SubjectService>();
-            builder.Services.AddScoped<IUnitRepository, UnitRepository>();
-            builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<IUnitService, UnitService>();
-            builder.Services.AddScoped<ILessonRepository, LessonRepository>();
             builder.Services.AddScoped<ILessonService, LessonService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IQuizService, QuizService>();

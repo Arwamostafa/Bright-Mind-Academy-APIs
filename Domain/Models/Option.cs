@@ -1,8 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Domain.Models;
 
-public class option
+public class Option
 {
     public int id { get; set; }
     public string Name { get; set; }
@@ -10,5 +10,5 @@ public class option
 
     [ForeignKey("Question")]
     public int QuestionId { get; set; }
-    public virtual question? Question { get; set; }
+    public virtual Question? Question { get; set; }
 }

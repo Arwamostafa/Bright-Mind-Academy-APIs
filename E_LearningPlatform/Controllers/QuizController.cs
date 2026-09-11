@@ -1,86 +1,63 @@
-﻿using Domain.DTO;
+using Domain.DTO;
+using E_LearningPlatform.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Service.Services.Contract;
-using Service.Services.Implementation;
 
-namespace lab1.Controllers
+namespace E_LearningPlatform.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class QuizController : ControllerBase
     {
-        private IQuizService quizService;
+        private readonly IQuizService quizService;
         public QuizController(IQuizService _quizService)
         {
             quizService = _quizService;
         }
 
         [HttpGet("getall")]
-        public IActionResult getallquiz()
+        public async Task<IActionResult> GetAllQuizzes(CancellationToken cancellationToken)
         {
-            List<quizdto> result = quizService.getallquizzes();
-            if (result != null && result.Count > 0)
-            {
+            var result = await quizService.GetAllQuizzesAsync(cancellationToken);
+            if (result.Count > 0)
                 return Ok(result);
-            }
             return NotFound("No quizzes found.");
         }
+
         [HttpPost]
-        public IActionResult Add([FromBody] quizdto quiz)
+        public async Task<IActionResult> Add([FromBody] QuizDto quiz, CancellationToken cancellationToken)
         {
-            var result = quizService.addquiz(quiz);
-            if (result > 0) return Ok(result);
-            if (result == -1) return Conflict("Quiz already exists.");
-            return BadRequest();
+            var result = await quizService.AddQuizAsync(quiz, cancellationToken);
+            return result.ToActionResult(this);
         }
+
         [HttpGet("getById/{id}")]
-        public IActionResult getquiz(int id)
+        public async Task<IActionResult> GetQuiz(int id, CancellationToken cancellationToken)
         {
-
-            quizdto result = quizService.getquiz(id);
-            if (result != null)
-            {
-                return Ok(result);
-            }
-            return BadRequest("no quiz with this id");
+            var result = await quizService.GetQuizByIdAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
-        //[HttpPost("update")]
         [HttpPut("update/{id}")]
-        public IActionResult Update(int id, [FromBody] quizdto quiz)
+        public async Task<IActionResult> Update(int id, [FromBody] QuizDto quiz, CancellationToken cancellationToken)
         {
             quiz.Id = id;
-            var result = quizService.updatequiz(quiz);
-            if (result == 1) return Ok();
-            if (result == -1) return NotFound();
-            return BadRequest();
+            var result = await quizService.UpdateQuizAsync(quiz, cancellationToken);
+            return result.ToActionResult(this);
         }
 
-        //[HttpDelete("{id}")]
-        //public IActionResult Delete(int id)
-        //{
-        //    var result = quizService.deletequiz(id);
-        //    if (result == 1) return Ok();
-        //    return NotFound();
-        //}
-
         [HttpDelete("delete/{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            var result = quizService.deletequiz(id);
-            if (result == 1) return Ok();
-            return NotFound();
+            var result = await quizService.DeleteQuizAsync(id, cancellationToken);
+            return result.ToActionResult(this);
         }
 
         [HttpGet("bylesson/{lessonId}")]
-        public IActionResult GetQuizByLessonId(int lessonId)
+        public async Task<IActionResult> GetQuizByLessonId(int lessonId, CancellationToken cancellationToken)
         {
-            var quiz = quizService.GetQuizByLessonId(lessonId);
-            if (quiz == null)
-                return NotFound(new { message = "No quiz found for this lesson." });
-
-            return Ok(quiz);
+            var result = await quizService.GetQuizByLessonIdAsync(lessonId, cancellationToken);
+            return result.ToActionResult(this);
         }
     }
 
