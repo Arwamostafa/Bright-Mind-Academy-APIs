@@ -1,6 +1,6 @@
 using Domain.Common;
 
-namespace Application.Services.Implementation;
+namespace Infrastructure.Services.Files;
 
 
 internal static class FileSignatureValidator

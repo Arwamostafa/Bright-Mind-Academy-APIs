@@ -3,7 +3,7 @@ using Domain.Options;
 using Microsoft.Extensions.Options;
 using Application.Services.Contract;
 
-namespace Application.Services.Implementation;
+namespace Infrastructure.Services.Files;
 
 public class FileService(IOptions<FileUploadOptions> options) : IFileService
 {
@@ -23,7 +23,7 @@ public class FileService(IOptions<FileUploadOptions> options) : IFileService
                 "File.InvalidExtension",
                 $"'{extension}' is not an allowed {category} extension. Allowed: {string.Join(", ", allowedExtensions)}"));
 
-       
+
         var maxSizeBytes = _options.MaxSizeBytesFor(category);
         if (file.Length > maxSizeBytes)
             return Result.Failure<string>(Error.Validation(

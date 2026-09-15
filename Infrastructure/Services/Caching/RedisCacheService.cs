@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Infrastructure.Caching;
+namespace Infrastructure.Services.Caching;
 
 /// <summary>
 /// Caching is a performance optimization, never a hard dependency: every Redis call is

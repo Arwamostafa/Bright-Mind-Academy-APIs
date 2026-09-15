@@ -2,7 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Linq;
 
-namespace Infrastructure.AI
+namespace Infrastructure.Services.AI
 {
     public class RagService
     {
