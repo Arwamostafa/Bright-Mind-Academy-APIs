@@ -1,16 +1,19 @@
 using Domain.Common;
 using Domain.Models;
+using Application.Caching;
 using Application.Repositories;
 using Application.Services.Contract;
 
 namespace Application.Services.Implementation;
 
-public class TrackService(IUnitOfWork unitOfWork) : ITrackService
+public class TrackService(IUnitOfWork unitOfWork, ICacheService cache) : ITrackService
 {
+    private const string AllTracksCacheKey = "tracks:all";
+
     private IGenericRepository<Track> Repo => unitOfWork.Repository<Track>();
 
     public Task<IReadOnlyList<Track>> GetAllTracksAsync(CancellationToken cancellationToken = default) =>
-        Repo.GetAllAsync(cancellationToken);
+        cache.GetOrCreateAsync(AllTracksCacheKey, Repo.GetAllAsync, cancellationToken: cancellationToken);
 
     public Task<PaginatedList<Track>> GetPageOfTracksAsync(RequestFilters requestFilters, CancellationToken cancellationToken = default) =>
         Repo.GetPaginatedListAsync(requestFilters, orderBy: q => q.OrderBy(t => t.TrackID), cancellationToken: cancellationToken);
@@ -35,6 +38,7 @@ public class TrackService(IUnitOfWork unitOfWork) : ITrackService
     {
         await Repo.AddAsync(addedTrack, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllTracksCacheKey, cancellationToken);
         return Result.Success(addedTrack);
     }
 
@@ -46,6 +50,7 @@ public class TrackService(IUnitOfWork unitOfWork) : ITrackService
 
         Repo.Remove(track);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllTracksCacheKey, cancellationToken);
         return Result.Success();
     }
 
@@ -58,6 +63,7 @@ public class TrackService(IUnitOfWork unitOfWork) : ITrackService
         track.TrackName = updatedTrack.TrackName;
         Repo.Update(track);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync(AllTracksCacheKey, cancellationToken);
         return Result.Success();
     }
 }

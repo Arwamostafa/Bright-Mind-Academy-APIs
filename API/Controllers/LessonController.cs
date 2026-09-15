@@ -1,5 +1,6 @@
 using Domain.DTO;
 using API.Extensions;
+using API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Application.Services.Contract;
@@ -42,8 +43,9 @@ namespace API.Controllers
         [RequestSizeLimit(30_000_000)]
         [HttpPost("Add")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Add([FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
+        public async Task<IActionResult> Add([FromForm] LessonUploadForm form, CancellationToken cancellationToken)
         {
+            var lessonDto = ToLessonCreateDto(form);
             var result = await _lessonService.AddAsync(lessonDto, cancellationToken);
             return result.ToActionResult(this);
         }
@@ -51,11 +53,24 @@ namespace API.Controllers
         [RequestSizeLimit(30_000_000)]
         [HttpPut("Update/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]
-        public async Task<IActionResult> Update(int id, [FromForm] LessonCreateDto lessonDto, CancellationToken cancellationToken)
+        public async Task<IActionResult> Update(int id, [FromForm] LessonUploadForm form, CancellationToken cancellationToken)
         {
+            var lessonDto = ToLessonCreateDto(form);
             var result = await _lessonService.Update(lessonDto, id, cancellationToken);
             return result.ToActionResult(this);
         }
+
+        private static LessonCreateDto ToLessonCreateDto(LessonUploadForm form) => new()
+        {
+            Id = form.Id,
+            Title = form.Title,
+            Description = form.Description,
+            UnitId = form.UnitId,
+            VideoUrl = form.VideoUrl.ToFileUpload(),
+            PdfUrl = form.PdfUrl.ToFileUpload(),
+            AssigmentUrl = form.AssigmentUrl.ToFileUpload(),
+            AssigmentDeadLine = form.AssigmentDeadLine
+        };
 
         [HttpDelete("Delete/{id}")]
         //[Authorize(Roles = ("Instructor, Admin"))]

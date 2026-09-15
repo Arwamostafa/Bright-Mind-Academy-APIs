@@ -12,16 +12,18 @@ namespace API.Controllers
     public class SubjectController : ControllerBase
     {
         private readonly ISubjectService newSubject;
-        public SubjectController(ISubjectService _subject)
+        private readonly ISubjectQueryService subjectQuery;
+        public SubjectController(ISubjectService _subject, ISubjectQueryService _subjectQuery)
         {
             newSubject = _subject;
+            subjectQuery = _subjectQuery;
         }
 
         [HttpGet]
         //[Authorize(Roles = ("Instructor, Admin"))]
         public async Task<IActionResult> GetAllSubjects(CancellationToken cancellationToken)
         {
-            var response = await newSubject.GetAllSubjectsAsync(cancellationToken);
+            var response = await subjectQuery.GetAllSubjectsAsync(cancellationToken);
             return Ok(response);
         }
 
@@ -30,7 +32,7 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetSubjectByClassIdAndTrackId(int classId, int trackId, CancellationToken cancellationToken)
         {
-            var results = await newSubject.GetSubjectsByClassAndTrackAsync(classId, trackId, cancellationToken);
+            var results = await subjectQuery.GetSubjectsByClassAndTrackAsync(classId, trackId, cancellationToken);
             return Ok(results);
         }
 
@@ -38,7 +40,7 @@ namespace API.Controllers
         //[AllowAnonymous]
         public async Task<IActionResult> GetHomeSubjectById(int id, CancellationToken cancellationToken)
         {
-            var result = await newSubject.GetHomeSubjectByIdAsync(id, cancellationToken);
+            var result = await subjectQuery.GetHomeSubjectByIdAsync(id, cancellationToken);
             return result.ToActionResult(this);
         }
 
@@ -46,7 +48,7 @@ namespace API.Controllers
         //[AllowAnonymous]
         public async Task<IActionResult> GetHomeSubjects(CancellationToken cancellationToken)
         {
-            var results = await newSubject.GetHomeSubjectsAsync(cancellationToken);
+            var results = await subjectQuery.GetHomeSubjectsAsync(cancellationToken);
             return Ok(results);
         }
 
@@ -91,7 +93,7 @@ namespace API.Controllers
         [HttpGet("Top3Subject")]
         public async Task<IActionResult> GetTop3Subject(CancellationToken cancellationToken)
         {
-            var subjects = await newSubject.TopThreeSubjectsAsync(cancellationToken);
+            var subjects = await subjectQuery.TopThreeSubjectsAsync(cancellationToken);
             return Ok(subjects);
         }
 
@@ -100,7 +102,7 @@ namespace API.Controllers
         [HttpGet("GetPageOfSubjects")]
         public async Task<IActionResult> GetPageOfSubjects(int pageNumber = 1, int pageSize = 10, CancellationToken cancellationToken = default)
         {
-            var response = await newSubject.GetPageOfSubjectsAsync(pageNumber, pageSize, cancellationToken);
+            var response = await subjectQuery.GetPageOfSubjectsAsync(pageNumber, pageSize, cancellationToken);
             return Ok(response);
         }
 
@@ -114,7 +116,7 @@ namespace API.Controllers
         [HttpGet("GetStudentsBySubjectId/{subjectId:int}")]
         public async Task<IActionResult> GetStudentsBySubjectId(int subjectId, CancellationToken cancellationToken)
         {
-            var response = await newSubject.GetStudentsBySubjectIdAsync(subjectId, cancellationToken);
+            var response = await subjectQuery.GetStudentsBySubjectIdAsync(subjectId, cancellationToken);
             return Ok(response);
         }
     }

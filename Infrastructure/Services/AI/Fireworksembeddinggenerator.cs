@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Domain.Options;
 using Microsoft.Extensions.Options;
 
-namespace API.Services
+namespace Infrastructure.Services.AI
 {
     public class Fireworksembeddinggenerator(IOptions<FireworksOptions> options)
     {

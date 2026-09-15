@@ -1,6 +1,8 @@
 ﻿using Domain.Common;
 using Domain.DTO;
 using Domain.Models;
+using API.Extensions;
+using API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -26,9 +28,9 @@ namespace API.Controllers
         }
 
         [HttpPost("addingInstructor")]
-        public async Task<IActionResult> AddInstructor([FromForm] InstructorAddingDTO instructorAddingDTO, CancellationToken cancellationToken)
+        public async Task<IActionResult> AddInstructor([FromForm] InstructorUploadForm form, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(instructorAddingDTO.Password))
+            if (string.IsNullOrWhiteSpace(form.Password))
             {
                 ModelState.AddModelError("Password", "Password is required");
                 return BadRequest(ModelState);
@@ -36,7 +38,7 @@ namespace API.Controllers
 
             if (ModelState.IsValid)
             {
-                var existingUser = await userManager.FindByEmailAsync(instructorAddingDTO.Email);
+                var existingUser = await userManager.FindByEmailAsync(form.Email);
                 if (existingUser != null)
                 {
                     ModelState.AddModelError("Email", "Email is already in use");
@@ -53,25 +55,25 @@ namespace API.Controllers
                 // Validate the image before creating anything, so a bad upload doesn't
                 // leave behind an Identity user with no InstructorProfile and no role.
                 string? imageUrl = null;
-                if (instructorAddingDTO.Image != null)
+                if (form.Image != null)
                 {
-                    var uploadResult = await fileService.UploadAsync(instructorAddingDTO.Image, FileCategory.Image, "Uploads/Image", cancellationToken);
+                    var uploadResult = await fileService.UploadAsync(form.Image.ToFileUpload(), FileCategory.Image, "Uploads/Image", cancellationToken);
                     if (uploadResult.IsFailure)
                         return BadRequest(new { message = uploadResult.Error.Message });
                     imageUrl = uploadResult.Value;
                 }
 
                 ApplicationUser user = new ApplicationUser();
-                user.Email = instructorAddingDTO.Email;
-                user.PhoneNumber = instructorAddingDTO.PhoneNumber;
-                user.Address = instructorAddingDTO.Address;
-                user.FirstName = instructorAddingDTO.FirstName;
-                user.LastName = instructorAddingDTO.LastName;
-                user.Gender = instructorAddingDTO.Gender;
-                user.UserName = instructorAddingDTO.FirstName + instructorAddingDTO.LastName;
+                user.Email = form.Email;
+                user.PhoneNumber = form.PhoneNumber;
+                user.Address = form.Address;
+                user.FirstName = form.FirstName;
+                user.LastName = form.LastName;
+                user.Gender = form.Gender;
+                user.UserName = form.FirstName + form.LastName;
 
 
-                IdentityResult result = await userManager.CreateAsync(user, instructorAddingDTO.Password);
+                IdentityResult result = await userManager.CreateAsync(user, form.Password);
 
 
 
@@ -166,7 +168,7 @@ namespace API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateInstructor(int id, [FromForm] InstructorAddingDTO instructorAddingDTO, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdateInstructor(int id, [FromForm] InstructorUploadForm form, CancellationToken cancellationToken)
         {
 
             var user = await userManager.Users.Include(u => u.InstructorProfile)
@@ -177,7 +179,7 @@ namespace API.Controllers
                 return NotFound("Instructor Not Found");
             }
 
-            var existingUser = await userManager.FindByEmailAsync(instructorAddingDTO.Email);
+            var existingUser = await userManager.FindByEmailAsync(form.Email);
             if (existingUser != null && existingUser.Id != id)
             {
                 ModelState.AddModelError("Email", "Email is already in use");
@@ -194,22 +196,22 @@ namespace API.Controllers
             // Validate the image before persisting anything, so a bad upload doesn't
             // leave the profile fields partially updated.
             string? newImageUrl = null;
-            if (user.InstructorProfile != null && instructorAddingDTO.Image != null)
+            if (user.InstructorProfile != null && form.Image != null)
             {
-                var uploadResult = await fileService.UploadAsync(instructorAddingDTO.Image, FileCategory.Image, "Uploads/Images", cancellationToken);
+                var uploadResult = await fileService.UploadAsync(form.Image.ToFileUpload(), FileCategory.Image, "Uploads/Images", cancellationToken);
                 if (uploadResult.IsFailure)
                     return BadRequest(new { message = uploadResult.Error.Message });
 
                 newImageUrl = uploadResult.Value;
             }
 
-            user.Email = instructorAddingDTO.Email;
-            user.PhoneNumber = instructorAddingDTO.PhoneNumber;
-            user.Address = instructorAddingDTO.Address;
-            user.FirstName = instructorAddingDTO.FirstName;
-            user.LastName = instructorAddingDTO.LastName;
-            user.Gender = instructorAddingDTO.Gender;
-            user.UserName = instructorAddingDTO.FirstName + instructorAddingDTO.LastName;
+            user.Email = form.Email;
+            user.PhoneNumber = form.PhoneNumber;
+            user.Address = form.Address;
+            user.FirstName = form.FirstName;
+            user.LastName = form.LastName;
+            user.Gender = form.Gender;
+            user.UserName = form.FirstName + form.LastName;
 
             var result = await userManager.UpdateAsync(user);
 

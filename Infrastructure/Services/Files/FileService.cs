@@ -1,10 +1,9 @@
 using Domain.Common;
 using Domain.Options;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Application.Services.Contract;
 
-namespace Application.Services.Implementation;
+namespace Infrastructure.Services.Files;
 
 public class FileService(IOptions<FileUploadOptions> options) : IFileService
 {
@@ -12,7 +11,7 @@ public class FileService(IOptions<FileUploadOptions> options) : IFileService
 
     private readonly FileUploadOptions _options = options.Value;
 
-    public async Task<Result<string>> UploadAsync(IFormFile? file, FileCategory category, string folderName, CancellationToken cancellationToken = default)
+    public async Task<Result<string>> UploadAsync(IFileUpload? file, FileCategory category, string folderName, CancellationToken cancellationToken = default)
     {
         if (file is null || file.Length == 0)
             return Result.Failure<string>(Error.Validation("File.Empty", "No file was provided."));
@@ -24,7 +23,7 @@ public class FileService(IOptions<FileUploadOptions> options) : IFileService
                 "File.InvalidExtension",
                 $"'{extension}' is not an allowed {category} extension. Allowed: {string.Join(", ", allowedExtensions)}"));
 
-       
+
         var maxSizeBytes = _options.MaxSizeBytesFor(category);
         if (file.Length > maxSizeBytes)
             return Result.Failure<string>(Error.Validation(
@@ -43,9 +42,10 @@ public class FileService(IOptions<FileUploadOptions> options) : IFileService
         var uniqueFileName = $"{Guid.NewGuid()}{extension}";
         var finalPath = Path.Combine(uploadsFolder, uniqueFileName);
 
-        using (var stream = new FileStream(finalPath, FileMode.Create))
+        using (var sourceStream = file.OpenReadStream())
+        using (var destinationStream = new FileStream(finalPath, FileMode.Create))
         {
-            await file.CopyToAsync(stream, cancellationToken);
+            await sourceStream.CopyToAsync(destinationStream, cancellationToken);
         }
 
         return Result.Success($"{BaseUrl}/{folderName}/{uniqueFileName}");

@@ -10,7 +10,7 @@ using Application.Services.Contract;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Application.Services.Implementation
+namespace Infrastructure.Services.Payments
 {
     public class PaymentService : IPaymentService
     {

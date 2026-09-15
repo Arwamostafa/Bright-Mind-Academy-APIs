@@ -1,5 +1,5 @@
 ﻿
-using API.Services;
+using Infrastructure.Services.AI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using MongoDB.Bson;
