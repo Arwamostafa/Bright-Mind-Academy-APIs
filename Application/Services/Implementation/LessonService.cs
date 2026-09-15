@@ -35,7 +35,6 @@ namespace Application.Services.Implementation
                 Title = lessonCreateDto.Title,
                 Description = lessonCreateDto.Description,
                 UnitId = lessonCreateDto.UnitId,
-
                 VideoUrl = videoResult.Value,
                 AssigmentDeadLine = lessonCreateDto.AssigmentDeadLine,
                 AssigmentUrl = assignmentResult.Value,
